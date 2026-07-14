@@ -3,7 +3,7 @@ const path = require('path');
 const { Collection } = require('discord.js');
 const logger = require('./logger');
 
-const DISABLED_COMMAND_FILES = new Set(['conta.js', 'mcsrbet.js', 'ranking.js', 'slots.js']);
+const DISABLED_COMMAND_FILES = new Set(['conta.js', 'mcsrbet.js', 'ranking.js', 'slots.js', 'compare.js']);
 
 function readCommandModules() {
   const commandsPath = path.join(__dirname, '..', 'commands');
