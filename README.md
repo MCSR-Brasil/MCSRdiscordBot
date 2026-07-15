@@ -1,22 +1,20 @@
 # MCSRdiscordBot
 
-A minimal discord.js bot scaffold with a sample `/ping` slash command.
+discord.js bot for the Brazilian Minecraft Speedrun (MCSR) community. Provides player profiles, ranked match notifications, daily questions, donation alerts, and ranked score comparisons.
 
-## Prerequisites
-- Node.js 18+ recommended
-- A Discord application and bot token: https://discord.com/developers/applications
+## Requirements
+
+- Node.js 18+
+- A Discord bot token and application ID: https://discord.com/developers/applications
 
 ## Setup
-1. Copy `.env.example` to `.env` and fill in values:
-   - `TOKEN` (bot token)
-   - `CLIENT_ID` (application ID)
-   - `GUILD_ID` (a test server ID)
 
-2. Install dependencies:
+1. Install dependencies:
 ```bash
-npm install discord.js dotenv
-npm install -D nodemon
+npm install
 ```
+
+2. Create a `.env` file in the project root. See [Configuration](#configuration) for the full list.
 
 3. Register slash commands to your test guild:
 ```bash
@@ -30,148 +28,66 @@ npm run dev   # auto-restarts with nodemon
 npm start     # plain node
 ```
 
-## Files
-- `src/index.js` — bot entrypoint. Logs in and handles `/ping`.
-- `src/register-commands.js` — registers slash commands to a guild.
-- `.env.example` — environment variable template.
-- `package.json` — scripts: `start`, `dev`, `register`.
-
-## Notes
-- Commands registered to a guild appear instantly. For global commands use `Routes.applicationCommands(CLIENT_ID)` but allow up to 1 hour to propagate.
-
-## Modular architecture
-
-Project structure:
+## Project structure
 
 ```
 src/
-  commands/            # One file per slash command
-    ping.js
-    user.js
-    server.js
-    say.js
-  events/              # Discord.js event handlers
-    ready.js
-    interactionCreate.js
-  lib/
-    loader.js          # Dynamic loaders for commands/events
-    logger.js          # Simple timestamped logger
-  index.js             # Bootstraps client, loads commands/events
-  register-commands.js # Registers slash commands to a guild
+  commands/      # Slash commands; auto-loaded
+  events/        # Discord.js event handlers; auto-loaded
+  jobs/          # Background polling jobs
+  lib/           # Shared helpers, caches, and API clients
+  data/          # JSON state files
+  .cache/        # Runtime caches (created automatically)
+index.js
+register-commands.js
 ```
 
-### Add a new command
-Create `src/commands/echo.js`:
+## Commands
 
-```js
-const { SlashCommandBuilder } = require('discord.js');
+- `/perfil <nome>` — Player profile with runs, earnings, and ranked link.
+- `/compare <player_one> <player_two> [season]` — Ranked score comparison.
+- `/daily` — Daily question with streak tracking.
+- `/server` — Basic server info.
 
-module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('echo')
-    .setDescription('Echo your input')
-    .addStringOption(o => o.setName('text').setDescription('Text to echo').setRequired(true)),
-  async execute(interaction) {
-    await interaction.reply({ content: interaction.options.getString('text', true), ephemeral: true });
-  },
-};
-```
+## Adding things
 
-Then register and run:
+### New slash command
 
-```bash
-npm run register
-npm run dev
-```
+Drop a file into `src/commands/`. Export `{ data: SlashCommandBuilder, execute }`. Optionally export `autocomplete` for autocomplete interactions.
 
-### Add an event
-Create `src/events/messageCreate.js`:
+The loader skips files listed in `DISABLED_COMMAND_FILES` inside `src/lib/loader.js`.
 
-```js
-const { Events } = require('discord.js');
-module.exports = {
-  name: Events.MessageCreate,
-  async execute(client, message) {
-    // your logic
-  },
-};
-```
+### New event handler
 
-### DX tips
-- Use `npm run dev` (nodemon) for auto-restart on file changes.
-- Commands/events are auto-loaded from their folders. Each command exports `{ data, execute }`.
-- Errors are logged with timestamps via `src/lib/logger.js`.
+Drop a file into `src/events/`. Export `{ name: Events.X, once?: boolean, execute(client, ...args) }`.
 
-## Fantasy Betting Feature
+### New background job
 
-This project includes a simple fantasy betting system with fake currency.
+Drop a file into `src/jobs/`. Export a `register({ register, client })` function that uses `register(jobObject)` and return a job object with `{ name, start(client) }`. Use `createIntervalJob` from `src/lib/jobs.js` for interval polling.
 
-### Slash command
+The loader skips files listed in `DISABLED_JOB_FILES` inside `src/lib/jobs.js`.
 
-`/mcsrbet` with subcommands:
+### New lib helper
 
-- **balance** — Show your current balance.
-- **events** — List currently open events you can bet on.
-- **bet** — Place a bet. Options:
-  - `event` (ID)
-  - `option` (must match one of the event options)
-  - `amount` (integer, coins)
-- **mybets** — Show your active bets.
-- **leaderboard** — Top balances in the server.
-- **refresh** — Admin-only; refresh events cache from the Google API.
+Create a file in `src/lib/`. Use `module.exports` to expose functions. For persistent state, prefer `src/data/` via `src/lib/store.js`.
 
-### Background job
+## Configuration
 
-- **`src/jobs/betsWatcher.js`** periodically:
-  - Refreshes open events from the Google Bets API.
-  - Reads results from the Google Results API and settles bets.
+Environment variables used by the bot:
 
-### Environment variables
+- `TOKEN` — Discord bot token.
+- `CLIENT_ID` — Discord application ID.
+- `GUILD_ID` — Test guild ID for command registration.
+- `GOOGLE_RUNS_API_URL` — Google Apps Script endpoint for runners/rsg/ssg/earnings data.
+- `PROFILE_FETCH_TIMEOUT_MS` — Timeout for profile/earnings cache fetches (default: 15000).
+- `LIVEPIX_CLIENT_ID`, `LIVEPIX_CLIENT_SECRET` — For the livepix donation watcher.
+- `LIVEPIX_CHANNEL_ID` — Channel ID where donation alerts are posted.
+- `RANKED_CHANNEL_ID` — Channel ID where ranked match notifications are posted.
+- Emoji overrides: `LOGO_EMOJI`, `TROPHY_EMOJI`, `RANKED_EMOJI`, `COIN_EMOJI`, `CLOCK_EMOJI`, `WIN_EMOJI`, `LOSE_EMOJI`, etc.
 
-Add the following to your `.env` (see `.env.example` as a template):
+## Notes
 
-```
-# Google App APIs for betting
-GOOGLE_BETS_API_URL=https://your-google-app.example.com/events
-GOOGLE_RESULTS_API_URL=https://your-google-app.example.com/results
-
-# Polling interval (ms) for bets watcher
-BETS_POLL_MS=30000
-
-# Starting balance for new users
-STARTING_BALANCE=1000
-```
-
-Responses expected by the app:
-
-- **Bets API** (`GOOGLE_BETS_API_URL`) — returns either an array or an object with `items: []`. Each event item should include:
-  - `id` (string)
-  - `title` (string)
-  - `options` (array of strings)
-  - `closesAt` (ISO timestamp, optional)
-
-- **Results API** (`GOOGLE_RESULTS_API_URL`) — returns either an array or an object with `items: []`. Each result item should include:
-  - `eventId` (string)
-  - `winner` (string, must match one of the event options)
-  - `settled` (boolean)
-
-### Register and run
-
-1. Re-register commands so `/mcsrbet` appears:
-   ```bash
-   npm run register
-   ```
-2. Run the bot:
-   ```bash
-   npm run dev
-   # or
-   npm start
-   ```
-
-### Data storage
-
-Simple JSON files under `src/data/`:
-
-- **economy.json** — user balances, totals won/lost.
-- **bets.json** — placed bets and settlement info.
-- **events.json** — cache of open events.
+- Commands are registered to the guild defined by `GUILD_ID` for instant availability.
+- `src/lib/loader.js` skips files listed in `DISABLED_COMMAND_FILES` and `src/lib/jobs.js` skips `DISABLED_JOB_FILES`.
+- `npm run register` only registers commands that are not disabled.
+- Jobs and profile/earnings caches are loaded once at startup from `src/events/ready.js`.
