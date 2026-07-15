@@ -1,13 +1,31 @@
 const { EmbedBuilder } = require('discord.js');
 const logger = require('./logger');
 
+const TROPHY_EMOJI = process.env.TROPHY_EMOJI || '🏆';
+const GLOBE_EMOJI = process.env.GLOBE_EMOJI || '🌐';
+const RANKED_EMOJI = process.env.RANKED_EMOJI || '🏆';
+const COIN_EMOJI = process.env.COIN_EMOJI || '💰';
+const CLOCK_EMOJI = process.env.CLOCK_EMOJI || '⏱';
+const BURIED_TREASURE_EMOJI = process.env.BURIED_TREASURE_EMOJI || process.env.BURIED_TRASURE || '🏴‍☠️';
+const SEED_EMOJI = process.env.SEED_EMOJI || '�';
+const LOGO_EMOJI = process.env.LOGO_EMOJI || '�';
+const MCSRBR_QUEUE_URL = 'mcsrbr.queuefish.ing';
+
 const GOOGLE_RUNS_API_BASE = process.env.GOOGLE_RUNS_API_URL || 'https://script.google.com/macros/s/AKfycbztdxz4Cm5x03Xs_1mdX9Uxkf4g51FqohS-SqoAn28CPuvMAAJgdJsYhstp57PogdY4/exec';
 
 const ACTIONS = {
   runners: 'getrunners',
   rsg: 'getrsg116',
   ssg: 'getssg116',
+  earnings: 'getearnings',
 };
+
+let earningsCache = new Map();
+
+let runnersCache = [];
+let rsgRunsCache = [];
+let ssgRunsCache = [];
+let profileCacheLoaded = false;
 
 function buildApiUrl(action) {
   return `${GOOGLE_RUNS_API_BASE}?action=${action}`;
@@ -29,20 +47,32 @@ function parseDate(value) {
   return date;
 }
 
+function unwrapArray(data, keys) {
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    for (const key of keys) {
+      if (key in data && Array.isArray(data[key])) {
+        return data[key];
+      }
+    }
+  }
+  return Array.isArray(data) ? data : [];
+}
+
 function parseRunners(data) {
-  if (!Array.isArray(data)) return [];
-  return data
+  const rows = unwrapArray(data, ['runners', 'data', 'results', 'items']);
+  return rows
     .filter(Array.isArray)
     .map(row => ({
       name: row[0],
       state: row[1],
       color: row[2],
+      uuid: row[3],
     }));
 }
 
 function parseRsgRuns(data) {
-  if (!Array.isArray(data)) return [];
-  return data
+  const rows = unwrapArray(data, ['rsg', 'rsgRuns', 'runs', 'data', 'results', 'items']);
+  return rows
     .filter(Array.isArray)
     .map(row => ({
       name: row[0],
@@ -59,8 +89,8 @@ function parseRsgRuns(data) {
 }
 
 function parseSsgRuns(data) {
-  if (!Array.isArray(data)) return [];
-  return data
+  const rows = unwrapArray(data, ['ssg', 'ssgRuns', 'runs', 'data', 'results', 'items']);
+  return rows
     .filter(Array.isArray)
     .map(row => ({
       name: row[0],
@@ -81,6 +111,37 @@ function findRunner(runners, name) {
 
 function findRuns(runs, name) {
   return runs.filter(r => normalizeName(r.name) === normalizeName(name));
+}
+
+function calculateEarnings(tournaments) {
+  const map = new Map();
+  for (const tournament of tournaments) {
+    const winners = Array.isArray(tournament?.winners) ? tournament.winners : [];
+    for (const winner of winners) {
+      if (!Array.isArray(winner) || winner.length < 2) continue;
+      const name = normalizeName(winner[0]);
+      const amount = Number(winner[1]) || 0;
+      if (!name || Number.isNaN(amount)) continue;
+      map.set(name, (map.get(name) || 0) + amount);
+    }
+  }
+  return map;
+}
+
+async function loadEarningsCache(timeoutMs = 15000) {
+  try {
+    const data = await fetchWithTimeout(ACTIONS.earnings, timeoutMs);
+    const tournaments = unwrapArray(data, ['tournaments', 'data', 'results', 'items']);
+    earningsCache = calculateEarnings(tournaments);
+    logger.info(`Earnings cache loaded for ${earningsCache.size} players`);
+  } catch (e) {
+    logger.error('Failed to load earnings cache:', e);
+    earningsCache = new Map();
+  }
+}
+
+function getEarnings(name) {
+  return earningsCache.get(normalizeName(name)) || 0;
 }
 
 function colorToHex(color) {
@@ -107,27 +168,44 @@ function colorToHex(color) {
   return map[key] ?? 0x00b894;
 }
 
-function formatVerified(value) {
-  const text = String(value || '').trim().toLowerCase();
-  return text === 'sim' ? '✅' : '❌';
+function formatDateShort(parsedDate, rawDate) {
+  const date = parsedDate || parseDate(rawDate);
+  if (!date) return rawDate || '';
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = String(date.getFullYear()).slice(-2);
+  return `${day}/${month}/${year}`;
 }
 
-function formatRunLine(run, maxComment = 80) {
-  const parts = [];
-  if (run.time) parts.push(`⏱ ${run.time}`);
-  if (run.date) parts.push(`📅 ${run.date}`);
-  if (run.verified !== undefined) parts.push(`${formatVerified(run.verified)} Verificada`);
-  if (run.type === 'RSG') {
-    if (run.bastion) parts.push(`🛡 ${run.bastion}`);
-    if (run.seed) parts.push(`🌱 ${run.seed}`);
-  } else if (run.type === 'SSG') {
-    if (run.seedName) parts.push(`🌱 ${run.seedName}`);
+function stateFlagEmoji(state) {
+  const key = state ? String(state).trim().toUpperCase() : '';
+  if (!key) return '🇧🇷';
+  return process.env[`STATE_EMOJI_${key}`] || process.env.STATE_EMOJI || '🇧🇷';
+}
+
+function emojiToUrl(emojiString) {
+  const text = String(emojiString || '');
+  const match = text.match(/<a?:[^:]+:(\d+)>/);
+  if (!match) return null;
+  const animated = text.startsWith('<a:');
+  return `https://cdn.discordapp.com/emojis/${match[1]}.${animated ? 'gif' : 'png'}`;
+}
+
+function formatRunLine(run) {
+  const lines = [];
+  if (run.time) {
+    const time = run.type === 'SSG'
+      ? String(run.time).replace(/\.\d+.*$/, '')
+      : run.time;
+    lines.push(`${CLOCK_EMOJI} ${time}`);
   }
-  if (run.video) parts.push(`▶ [Vídeo](${run.video})`);
-  let comment = run.comment ? String(run.comment).trim() : '';
-  if (comment.length > maxComment) comment = `${comment.slice(0, maxComment)}…`;
-  if (comment) parts.push(`💬 ${comment}`);
-  return parts.join(' • ');
+  const small = run.type === 'SSG'
+    ? (run.seedName || formatDateShort(run.parsedDate, run.date))
+    : formatDateShort(run.parsedDate, run.date);
+  if (small) {
+    lines.push(`-# ${small}`);
+  }
+  return lines.join('\n');
 }
 
 function formatRunsSection(runs, title, maxRuns = 5) {
@@ -144,80 +222,131 @@ function formatRunsSection(runs, title, maxRuns = 5) {
   return { name: title, value, inline: false };
 }
 
-function normalizeProfile(name, runner, rsgRuns, ssgRuns) {
+function normalizeProfile(name, runner, rsgRuns, ssgRuns, errorNote = null) {
   return {
     name: runner?.name || name,
     state: runner?.state || '—',
     color: runner?.color || '—',
+    uuid: runner?.uuid || null,
     rsgRuns,
     ssgRuns,
+    errorNote,
   };
 }
 
 function buildProfileEmbed(profile) {
   const color = colorToHex(profile.color);
-  let description = profile.state && profile.state !== '—'
-    ? `📍 Estado: ${profile.state}`
-    : 'Informações de corridas do runner.';
+  const stateFlag = stateFlagEmoji(profile.state);
   const embed = new EmbedBuilder()
     .setColor(color)
-    .setTitle(`Perfil de ${profile.name}`)
-    .setDescription(description);
+    .setTitle(`${LOGO_EMOJI} Perfil de ${profile.name} ${LOGO_EMOJI}`);
 
-  const rsgField = formatRunsSection(profile.rsgRuns, '🏃 Runs 1.16 RSG');
+  if (profile.uuid) {
+    const headUuid = String(profile.uuid).replace(/-/g, '');
+    embed.setThumbnail(`https://mc-heads.net/head/${headUuid}`);
+  }
+
+  const rankedUrl = profile.uuid ? `https://mcsrranked.com/stats/${profile.uuid}` : null;
+  const rankedField = rankedUrl
+    ? { name: `${RANKED_EMOJI} Ranked:`, value: `\n[Perfil](${rankedUrl})`, inline: true }
+    : null;
+  const earnings = getEarnings(profile.name);
+  const ganhosValue = earnings > 0 ? `R$ ${earnings.toLocaleString('pt-BR')}` : '—';
+  const ganhosField = { name: `${COIN_EMOJI} Ganhos:`, value: ganhosValue, inline: true };
+
+  if (rankedField) embed.addFields(rankedField);
+  if (rankedField && ganhosField) {
+    embed.addFields({ name: '\u200b', value: '\u200b', inline: true });
+  }
+  if (ganhosField) embed.addFields(ganhosField);
+
+  const rsgField = formatRunsSection(profile.rsgRuns, `${BURIED_TREASURE_EMOJI} RSG 1.16:`);
+  const ssgField = formatRunsSection(profile.ssgRuns, `${SEED_EMOJI} SSG 1.16:`);
+
+  if (rsgField && ssgField) {
+    rsgField.inline = true;
+    ssgField.inline = true;
+  }
+
   if (rsgField) embed.addFields(rsgField);
-
-  const ssgField = formatRunsSection(profile.ssgRuns, '⚡ Runs 1.16 SSG');
+  if (rsgField && ssgField) {
+    embed.addFields({ name: '\u200b', value: '\u200b', inline: true });
+  }
   if (ssgField) embed.addFields(ssgField);
 
-  if (!rsgField && !ssgField) {
-    embed.setDescription(`${description}\nNenhuma run encontrada.`.trim());
-  }
+  const footerText = profile.errorNote
+    ? `${profile.errorNote} • ${MCSRBR_QUEUE_URL}`
+    : MCSRBR_QUEUE_URL;
+  embed.setFooter({ text: footerText, iconURL: emojiToUrl(LOGO_EMOJI) });
 
   embed.setTimestamp();
   return embed;
 }
 
-async function fetchJson(action) {
+async function loadProfileCache(timeoutMs = 15000) {
+  const results = await Promise.allSettled([
+    fetchWithTimeout(ACTIONS.runners, timeoutMs),
+    fetchWithTimeout(ACTIONS.rsg, timeoutMs),
+    fetchWithTimeout(ACTIONS.ssg, timeoutMs),
+  ]);
+
+  if (results[0].status === 'fulfilled') runnersCache = parseRunners(results[0].value);
+  else logger.warn('Failed to cache runners:', results[0].reason?.message || results[0].reason);
+
+  if (results[1].status === 'fulfilled') rsgRunsCache = parseRsgRuns(results[1].value);
+  else logger.warn('Failed to cache rsg runs:', results[1].reason?.message || results[1].reason);
+
+  if (results[2].status === 'fulfilled') ssgRunsCache = parseSsgRuns(results[2].value);
+  else logger.warn('Failed to cache ssg runs:', results[2].reason?.message || results[2].reason);
+
+  profileCacheLoaded = true;
+  logger.info(`Profile cache loaded: ${runnersCache.length} runners, ${rsgRunsCache.length} rsg runs, ${ssgRunsCache.length} ssg runs`);
+}
+
+async function fetchWithTimeout(action, timeoutMs) {
   const url = buildApiUrl(action);
-  logger.info(`fetchJson: fetching ${url}`);
-  let res;
+  logger.info(`fetchWithTimeout: fetching ${url} (timeout ${timeoutMs}ms)`);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    res = await fetch(url, { headers: { accept: 'application/json' } });
-  } catch (e) {
-    logger.error(`fetchJson: fetch failed for ${action}:`, e);
-    throw new Error(`Falha ao conectar com a API (${action}).`);
-  }
-  if (!res.ok) {
-    logger.warn(`fetchJson: non-OK status ${res.status} from ${url}`);
-    throw new Error(`A API retornou um erro (${action}): ${res.status}.`);
-  }
-  try {
+    const res = await fetch(url, {
+      headers: { accept: 'application/json' },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      logger.warn(`fetchWithTimeout: non-OK status ${res.status} from ${url}`);
+      throw new Error(`A API retornou um erro (${action}): ${res.status}.`);
+    }
+
     return await res.json();
   } catch (e) {
-    logger.error(`fetchJson: failed to parse JSON for ${action}:`, e);
-    throw new Error(`A API retornou uma resposta inválida (${action}).`);
+    clearTimeout(timer);
+    if (e.name === 'AbortError') {
+      throw new Error(`Timeout ao buscar ${action}.`);
+    }
+    logger.error(`fetchWithTimeout: fetch failed for ${action}:`, e);
+    throw new Error(`Falha ao conectar com a API (${action}).`);
   }
 }
 
 async function fetchProfile(name) {
-  const [runnersData, rsgData, ssgData] = await Promise.all([
-    fetchJson(ACTIONS.runners),
-    fetchJson(ACTIONS.rsg),
-    fetchJson(ACTIONS.ssg),
-  ]);
+  if (!profileCacheLoaded) {
+    await loadProfileCache();
+  }
 
-  const runners = parseRunners(runnersData);
-  const runner = findRunner(runners, name);
+  const runner = findRunner(runnersCache, name);
+  const matchingRsg = findRuns(rsgRunsCache, name);
+  const matchingSsg = findRuns(ssgRunsCache, name);
 
-  const rsgRuns = findRuns(parseRsgRuns(rsgData), name);
-  const ssgRuns = findRuns(parseSsgRuns(ssgData), name);
-
-  if (!runner && rsgRuns.length === 0 && ssgRuns.length === 0) {
+  if (!runner && matchingRsg.length === 0 && matchingSsg.length === 0) {
     throw new Error('Runner não encontrado.');
   }
 
-  return normalizeProfile(name, runner, rsgRuns, ssgRuns);
+  return normalizeProfile(name, runner, matchingRsg, matchingSsg, null);
 }
 
 module.exports = {
@@ -226,4 +355,7 @@ module.exports = {
   normalizeProfile,
   buildApiUrl,
   colorToHex,
+  loadEarningsCache,
+  getEarnings,
+  loadProfileCache,
 };
