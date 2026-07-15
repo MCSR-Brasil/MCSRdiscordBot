@@ -40,7 +40,7 @@ function parseDate(value) {
   const text = String(value).trim();
   const match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
   if (!match) return null;
-  const [, day, month, year] = match.map(Number);
+  const [, month, day, year] = match.map(Number);
   const fullYear = year < 100 ? 2000 + year : year;
   const date = new Date(fullYear, month - 1, day);
   if (Number.isNaN(date.getTime())) return null;
