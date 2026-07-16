@@ -106,7 +106,11 @@ function parseSsgRuns(data) {
 }
 
 function findRunner(runners, name) {
-  return runners.find(r => normalizeName(r.name) === normalizeName(name));
+  const query = normalizeName(name);
+  return runners.find(r => {
+    const runnerName = normalizeName(r.name);
+    return runnerName === query || runnerName.includes(query) || query.includes(runnerName);
+  });
 }
 
 function findRuns(runs, name) {
@@ -339,8 +343,9 @@ async function fetchProfile(name) {
   }
 
   const runner = findRunner(runnersCache, name);
-  const matchingRsg = findRuns(rsgRunsCache, name);
-  const matchingSsg = findRuns(ssgRunsCache, name);
+  const resolvedName = runner?.name || name;
+  const matchingRsg = findRuns(rsgRunsCache, resolvedName);
+  const matchingSsg = findRuns(ssgRunsCache, resolvedName);
 
   if (!runner && matchingRsg.length === 0 && matchingSsg.length === 0) {
     throw new Error('Runner não encontrado.');
