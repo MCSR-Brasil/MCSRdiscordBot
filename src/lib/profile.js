@@ -12,6 +12,7 @@ const LOGO_EMOJI = process.env.LOGO_EMOJI || '�';
 const MCSRBR_QUEUE_URL = 'mcsrbr.queuefish.ing';
 
 const GOOGLE_RUNS_API_BASE = process.env.GOOGLE_RUNS_API_URL || 'https://script.google.com/macros/s/AKfycbztdxz4Cm5x03Xs_1mdX9Uxkf4g51FqohS-SqoAn28CPuvMAAJgdJsYhstp57PogdY4/exec';
+const RANKED_API_BASE = 'https://api.mcsrranked.com/users';
 
 const ACTIONS = {
   runners: 'getrunners',
@@ -181,6 +182,19 @@ function formatDateShort(parsedDate, rawDate) {
   return `${day}/${month}/${year}`;
 }
 
+function formatMs(ms) {
+  if (ms === null || ms === undefined || Number.isNaN(ms)) return null;
+  const totalSeconds = Math.floor(Number(ms) / 1000);
+  if (totalSeconds < 0) return null;
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
 function stateFlagEmoji(state) {
   const key = state ? String(state).trim().toUpperCase() : '';
   if (!key) return '🇧🇷';
@@ -226,14 +240,15 @@ function formatRunsSection(runs, title, maxRuns = 5) {
   return { name: title, value, inline: false };
 }
 
-function normalizeProfile(name, runner, rsgRuns, ssgRuns, errorNote = null) {
+function normalizeProfile(name, runner, rsgRuns, rankedPb, rankedElo, errorNote = null) {
   return {
     name: runner?.name || name,
     state: runner?.state || '—',
     color: runner?.color || '—',
     uuid: runner?.uuid || null,
     rsgRuns,
-    ssgRuns,
+    rankedPb,
+    rankedElo,
     errorNote,
   };
 }
@@ -265,18 +280,22 @@ function buildProfileEmbed(profile) {
   if (ganhosField) embed.addFields(ganhosField);
 
   const rsgField = formatRunsSection(profile.rsgRuns, `${BURIED_TREASURE_EMOJI} RSG 1.16:`);
-  const ssgField = formatRunsSection(profile.ssgRuns, `${SEED_EMOJI} SSG 1.16:`);
+  const rankedPbLines = [];
+  if (profile.rankedPb) rankedPbLines.push(`${CLOCK_EMOJI} ${profile.rankedPb}`);
+  if (profile.rankedElo !== null && profile.rankedElo !== undefined) rankedPbLines.push(`Elo: ${profile.rankedElo}`);
+  const rankedPbValue = rankedPbLines.length > 0 ? rankedPbLines.join('\n') : null;
+  const rankedPbField = rankedPbValue ? { name: `${RANKED_EMOJI} PB Ranked:`, value: rankedPbValue, inline: true } : null;
 
-  if (rsgField && ssgField) {
+  if (rsgField && rankedPbField) {
     rsgField.inline = true;
-    ssgField.inline = true;
+    rankedPbField.inline = true;
   }
 
   if (rsgField) embed.addFields(rsgField);
-  if (rsgField && ssgField) {
+  if (rsgField && rankedPbField) {
     embed.addFields({ name: '\u200b', value: '\u200b', inline: true });
   }
-  if (ssgField) embed.addFields(ssgField);
+  if (rankedPbField) embed.addFields(rankedPbField);
 
   const footerText = profile.errorNote
     ? `${profile.errorNote} • ${MCSRBR_QUEUE_URL}`
@@ -351,7 +370,50 @@ async function fetchProfile(name) {
     throw new Error('Runner não encontrado.');
   }
 
-  return normalizeProfile(name, runner, matchingRsg, matchingSsg, null);
+  let rankedPb = null;
+  let rankedElo = null;
+  if (runner?.uuid) {
+    try {
+      const rankedData = await fetchRankedStats(runner.uuid);
+      rankedPb = formatMs(rankedData?.data?.statistics?.total?.bestTime?.ranked);
+      rankedElo = rankedData?.data?.eloRate ?? null;
+    } catch (e) {
+      logger.warn('Failed to fetch ranked stats:', e);
+    }
+  }
+
+  return normalizeProfile(name, runner, matchingRsg, rankedPb, rankedElo, null);
+}
+
+async function fetchRankedStats(uuid, timeoutMs = 10000) {
+  const cleanUuid = String(uuid).replace(/-/g, '');
+  const url = `${RANKED_API_BASE}/${cleanUuid}`;
+  logger.info(`fetchRankedStats: fetching ${url} (timeout ${timeoutMs}ms)`);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      headers: { accept: 'application/json' },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      logger.warn(`fetchRankedStats: non-OK status ${res.status} from ${url}`);
+      throw new Error(`A API ranked retornou um erro: ${res.status}.`);
+    }
+
+    return await res.json();
+  } catch (e) {
+    clearTimeout(timer);
+    if (e.name === 'AbortError') {
+      throw new Error('Timeout ao buscar ranked stats.');
+    }
+    logger.error(`fetchRankedStats: fetch failed for ${uuid}:`, e);
+    throw new Error('Falha ao conectar com a API ranked.');
+  }
 }
 
 module.exports = {
