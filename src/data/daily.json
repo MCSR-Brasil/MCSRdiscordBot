@@ -1,7 +1,9 @@
 {
   "823032045378469929": {
-    "lastClaimAt": 1784077121706,
-    "streak": 1
+    "lastClaimAt": 1784295801017,
+    "streak": 1,
+    "correct": 1,
+    "incorrect": 0
   },
   "755487663762440384": {
     "lastClaimAt": 1784294617393,
@@ -10,8 +12,10 @@
     "incorrect": 0
   },
   "420322285283704833": {
-    "lastClaimAt": 1784218887746,
-    "streak": 0
+    "lastClaimAt": 1784310426169,
+    "streak": 1,
+    "correct": 1,
+    "incorrect": 0
   },
   "735234705317953626": {
     "lastClaimAt": 1784245733487,
@@ -24,11 +28,63 @@
     "incorrect": 0
   },
   "1374512909761380522": {
-    "lastClaimAt": 1784247074371,
-    "streak": 1
+    "lastClaimAt": 1784294864930,
+    "streak": 2,
+    "correct": 1,
+    "incorrect": 0
   },
   "422351313301667840": {
-    "lastClaimAt": 1784247099467,
-    "streak": 0
+    "lastClaimAt": 1784296269003,
+    "streak": 1,
+    "correct": 1,
+    "incorrect": 0
+  },
+  "729241230076018699": {
+    "lastClaimAt": 1784295645872,
+    "streak": 1,
+    "correct": 1,
+    "incorrect": 0
+  },
+  "614854213117280273": {
+    "lastClaimAt": 1784295896760,
+    "streak": 1,
+    "correct": 1,
+    "incorrect": 0
+  },
+  "980905421785157672": {
+    "lastClaimAt": 1784296525422,
+    "streak": 1,
+    "correct": 1,
+    "incorrect": 0
+  },
+  "1004299067297382404": {
+    "lastClaimAt": 1784297301417,
+    "streak": 0,
+    "correct": 0,
+    "incorrect": 1
+  },
+  "395268140487147520": {
+    "lastClaimAt": 1784297317711,
+    "streak": 1,
+    "correct": 1,
+    "incorrect": 0
+  },
+  "455543667827146762": {
+    "lastClaimAt": 1784298413302,
+    "streak": 0,
+    "correct": 0,
+    "incorrect": 1
+  },
+  "536888749452165130": {
+    "lastClaimAt": 1784301216354,
+    "streak": 1,
+    "correct": 1,
+    "incorrect": 0
+  },
+  "677266020754522145": {
+    "lastClaimAt": 1784301768080,
+    "streak": 1,
+    "correct": 1,
+    "incorrect": 0
   }
 }
