@@ -29,7 +29,6 @@ const QUESTIONS = [
   { q: 'Qual dessas categorias NAO existe no speedrun.com?', options: ['Obtain Player Head', 'Sonic Tail And Knuckles', 'Faz o L (Build an L%)', 'RSG 1.20+'], correctIndex: 3 },
   { q: 'Como chegar no pie chart pro mapless?', options: ['gameRenderer -> level -> tick -> blockEntities', 'gameRenderer -> tick -> blockEntities', 'gameRenderer -> entities -> blockEntities', 'gameRenderer -> level -> entities'], correctIndex: 3 },
   { q: 'Quem ganhou a primeira playoffs?', options: ['Lowkey', 'Dandannyboy', 'Doogile', 'Silverruns'], correctIndex: 3 },
-  { q: 'Quantos tipos de shipwreck existem?', options: ['8', '20', '11', '4'], correctIndex: 2 },
   { q: 'Qual tipo de Bastion tem a variacao com a menor quantidade de ouro entre todas os bastions?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 1 },
   { q: 'Qual flor se usa para fazer sopa de saturação?', options: ['Poppy', 'Lily', 'Dandelion', 'Allium'], correctIndex: 2 },
   { q: 'Quem tem o Recorde Brasileiro de maior elo na ranked?', options: ['Sanjinhu', 'Booster', 'Shy', 'Epik'], correctIndex: 3 },
@@ -53,12 +52,45 @@ const QUESTIONS = [
   { q: 'Todo bloco que os piglins gostam (Tratam como ouro) deixam eles brabos ao serem quebrados', options: ['Verdadeiro', 'Falso'], correctIndex: 1 },
   { q: 'Se um player machuca um piglin, ele vai ficar brabo ate o player morrer', options: ['Verdadeiro', 'Falso'], correctIndex: 1 },
   { q: 'Assim como Villagers, Piglins podem abrir portas para perseguir um player', options: ['Verdadeiro', 'Falso'], correctIndex: 0 },
-
-
-
-
-
-
+  { q: 'Quem criou o Ninjabrainbot?', options: ['Petalite', 'NinjaBrain','Specner','joejoe'], correctIndex: 1 },
+  { q: 'Em uma lingua especifica, o encantamento Looting se escreve Plunderin\', qual eh a lingua?', options: ['Pirate Speak', 'Shakesperean','Esperanto','LOLCAT'], correctIndex: 0 },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 2, image: 'src/data/images/bridge1.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 2, image: 'src/data/images/bridge2.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 2, image: 'src/data/images/bridge3.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 2, image: 'src/data/images/bridge4.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 2, image: 'src/data/images/bridge5.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 2, image: 'src/data/images/bridge6.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 2, image: 'src/data/images/bridge7.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 2, image: 'src/data/images/bridge8.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 2, image: 'src/data/images/bridge9.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 0, image: 'src/data/images/housing1.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 0, image: 'src/data/images/housing2.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 0, image: 'src/data/images/housing3.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 0, image: 'src/data/images/housing4.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 0, image: 'src/data/images/housing5.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 0, image: 'src/data/images/housing6.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 0, image: 'src/data/images/housing7.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 0, image: 'src/data/images/Housing8.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 0, image: 'src/data/images/housing9.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 1, image: 'src/data/images/stables1.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 1, image: 'src/data/images/stables2.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 1, image: 'src/data/images/stables3.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 1, image: 'src/data/images/stables4.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 1, image: 'src/data/images/stables5.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 1, image: 'src/data/images/stables6.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 1, image: 'src/data/images/stables7.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 1, image: 'src/data/images/stables8.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 1, image: 'src/data/images/stables9.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 1, image: 'src/data/images/stables10.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 1, image: 'src/data/images/stables11.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 3, image: 'src/data/images/Treasure1.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 3, image: 'src/data/images/Treasure2.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 3, image: 'src/data/images/treasure3.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 3, image: 'src/data/images/treasure4.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 3, image: 'src/data/images/treasure5.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 3, image: 'src/data/images/treasure6.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 3, image: 'src/data/images/treasure7.png' },
+  { q: 'Que tipo de bastion está na imagem?', options: ['Housing', 'Stables', 'Bridge', 'Treasure'], correctIndex: 3, image: 'src/data/images/treasure8.png' }
 ];
 
 module.exports = { QUESTIONS };
