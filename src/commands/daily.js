@@ -1,4 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, AttachmentBuilder } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
 const daily = require('../lib/daily');
 const { QUESTIONS } = require('../lib/dailyQuestions');
 
@@ -21,6 +23,14 @@ function formatTimeLeft(ms) {
   if (h > 0) return `${h}h ${m}m ${s}s`;
   if (m > 0) return `${m}m ${s}s`;
   return `${s}s`;
+}
+
+function attachIfLocal(value, files) {
+  if (!value || /^https?:\/\//i.test(value)) return;
+  const localPath = path.isAbsolute(value) ? value : path.join(__dirname, '..', '..', value);
+  if (fs.existsSync(localPath)) {
+    files.push(new AttachmentBuilder(localPath, { name: path.basename(localPath) }));
+  }
 }
 
 module.exports = {
@@ -49,6 +59,27 @@ module.exports = {
       .setFooter({ text: 'Reseta à meia-noite (horário de Brasília - UTC-3)' })
       .setTimestamp(new Date());
 
+    const files = [];
+    let imageUrl = null;
+    if (q.image) {
+      if (/^https?:\/\//i.test(q.image)) {
+        imageUrl = q.image;
+      } else {
+        attachIfLocal(q.image, files);
+        imageUrl = `attachment://${path.basename(q.image)}`;
+      }
+    }
+    if (imageUrl) embed.setImage(imageUrl);
+
+    let content = undefined;
+    if (q.video) {
+      if (/^https?:\/\//i.test(q.video)) {
+        content = q.video;
+      } else {
+        attachIfLocal(q.video, files);
+      }
+    }
+
     const row = new ActionRowBuilder().addComponents(
       ...opts.map((o, i) =>
         new ButtonBuilder()
@@ -59,7 +90,11 @@ module.exports = {
       )
     );
 
+    const replyOptions = { embeds: [embed], components: [row], flags: MessageFlags.Ephemeral };
+    if (content) replyOptions.content = content;
+    if (files.length > 0) replyOptions.files = files;
+
     // Ephemeral to keep the channel clean (only user sees the buttons)
-    return interaction.reply({ embeds: [embed], components: [row], flags: MessageFlags.Ephemeral });
+    return interaction.reply(replyOptions);
   },
 };

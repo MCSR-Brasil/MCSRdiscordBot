@@ -25,21 +25,22 @@ module.exports = {
         if (!daily.canClaim(interaction.user.id)) {
           return interaction.update({ content: 'Você já usou o daily nas últimas 24h.', components: [] });
         }
-        const streak = daily.registerAnswer(interaction.user.id, isCorrect);
+        const stats = daily.registerAnswer(interaction.user.id, isCorrect);
+        const statsLine = daily.formatStats(stats);
         if (isCorrect) {
           // Announce publicly in the channel without pinging the user or revealing the answer
           try {
             const displayName = interaction.member?.displayName || interaction.user.username;
             const questionText = qIndex !== undefined ? QUESTIONS[qIndex].q : 'a pergunta diária';
-            const msg = `✅ **${displayName}** acertou a pergunta "${questionText}"\n-# Streak atual: **${streak}**\n-# Use **/daily** para responder também`;
+            const msg = `✅ **${displayName}** acertou a pergunta "${questionText}"\n-# ${statsLine}\n-# Use **/daily** para responder também`;
             await interaction.channel?.send({ content: msg });
           } catch {}
-          return interaction.update({ content: `✅ Resposta correta! Sua streak atual é ${streak}.`, components: [] });
+          return interaction.update({ content: `✅ Resposta correta! ${statsLine}`, components: [] });
         } else {
           try {
             const displayName = interaction.member?.displayName || interaction.user.username;
             const questionText = qIndex !== undefined ? QUESTIONS[qIndex].q : 'a pergunta diária';
-            const msg = `❌ **${displayName}** errou a pergunta "${questionText}"\n-# Use **/daily** para responder também`;
+            const msg = `❌ **${displayName}** errou a pergunta "${questionText}"\n-# ${statsLine}\n-# Use **/daily** para responder também`;
             await interaction.channel?.send({ content: msg });
           } catch {}
 

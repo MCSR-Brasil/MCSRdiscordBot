@@ -13,6 +13,7 @@ const PACEMAN_CHANNEL_ID = process.env.PACEMAN_CHANNEL_ID;
 const TWITCH_EMOJI = process.env.TWITCH_EMOJI || '📺';
 const OFFLINE_EMOJI = process.env.OFFLINE_EMOJI || ':no_mobile_phones:';
 const CLOCK_EMOJI = process.env.CLOCK_EMOJI || '🕒';
+const GLOBE_EMOJI = process.env.GLOBE_EMOJI || '🌐';
 const DEFAULT_COLOR = Number(process.env.PACEMAN_EMBED_COLOR) || 0x9146ff;
 const FOOTER_ICON_URL = process.env.PACEMAN_FOOTER_ICON || 'https://cdn-icons-png.flaticon.com/512/6214/6214151.png';
 
@@ -166,7 +167,7 @@ function padName(name, length = 22) {
   return chars.join('').padEnd(length, '\u2800');
 }
 
-function buildSplitEmbed(run, event) {
+function buildSplitEmbed(run, event, skippedWhitelist = false) {
   const nickname = run.nickname || 'Unknown';
   const splitLabel = splitName(event.eventId);
 
@@ -175,11 +176,13 @@ function buildSplitEmbed(run, event) {
     .setAuthor({ name: padName(nickname), iconURL: headUrl(run.user?.uuid) })
     .setThumbnail(splitImageUrl(event.eventId, run));
 
-  const lines = [
-    `**${splitEmoji(event.eventId)}  ${splitLabel}**`,
-    `**${CLOCK_EMOJI}  ${formatMs(event.igt)}**`,
-    twitchLine(run.user),
-  ];
+  const lines = [];
+  if (skippedWhitelist) {
+    lines.push(`**${GLOBE_EMOJI} Gringo! ${GLOBE_EMOJI}**`);
+  }
+  lines.push(`**${splitEmoji(event.eventId)}  ${splitLabel}**`);
+  lines.push(`**${CLOCK_EMOJI}  ${formatMs(event.igt)}**`);
+  lines.push(twitchLine(run.user));
   embed.setDescription(lines.join('\n'));
 
   const footerText = pastSplitsFooter(run, event);
@@ -272,6 +275,7 @@ async function runPacemanWatcher(client) {
     const whitelisted = nickname && whitelist.has(normalize(nickname));
     const goodEnough = isRunGoodEnough(events);
     if (!whitelisted && !goodEnough) continue;
+    const skippedWhitelist = !whitelisted && goodEnough;
     if (events.length === 0) {
       skipped++;
       continue;
@@ -294,13 +298,17 @@ async function runPacemanWatcher(client) {
       if (inFlight.has(key)) continue;
       inFlight.add(key);
       try {
-        const embed = buildSplitEmbed(run, latest);
-        const eventsForPings = isFirstEncounter ? [latest] : unpostedEvents;
-        const { content, tierIndexes } = getPendingPings(worldId, eventsForPings);
+        const embed = buildSplitEmbed(run, latest, skippedWhitelist);
         const sendOptions = { embeds: [embed] };
-        if (content) sendOptions.content = content;
-        await channel.send(sendOptions);
-        if (tierIndexes.length > 0) markTierIndexesPinged(worldId, tierIndexes);
+        if (!skippedWhitelist) {
+          const eventsForPings = isFirstEncounter ? [latest] : unpostedEvents;
+          const { content, tierIndexes } = getPendingPings(worldId, eventsForPings);
+          if (content) sendOptions.content = content;
+          await channel.send(sendOptions);
+          if (tierIndexes.length > 0) markTierIndexesPinged(worldId, tierIndexes);
+        } else {
+          await channel.send(sendOptions);
+        }
         for (const e of unpostedEvents) markPosted(worldId, e.eventId, nickname);
         try { savePostedCache(postedCache); } catch {}
         posted++;
@@ -317,12 +325,16 @@ async function runPacemanWatcher(client) {
       if (inFlight.has(key)) continue;
       inFlight.add(key);
       try {
-        const embed = buildSplitEmbed(run, latest);
-        const { content, tierIndexes } = getPendingPings(worldId, unpostedEvents);
+        const embed = buildSplitEmbed(run, latest, skippedWhitelist);
         const sendOptions = { embeds: [embed] };
-        if (content) sendOptions.content = content;
-        await channel.send(sendOptions);
-        if (tierIndexes.length > 0) markTierIndexesPinged(worldId, tierIndexes);
+        if (!skippedWhitelist) {
+          const { content, tierIndexes } = getPendingPings(worldId, unpostedEvents);
+          if (content) sendOptions.content = content;
+          await channel.send(sendOptions);
+          if (tierIndexes.length > 0) markTierIndexesPinged(worldId, tierIndexes);
+        } else {
+          await channel.send(sendOptions);
+        }
         for (const e of unpostedEvents) markPosted(worldId, e.eventId, nickname);
         try { savePostedCache(postedCache); } catch {}
         posted++;

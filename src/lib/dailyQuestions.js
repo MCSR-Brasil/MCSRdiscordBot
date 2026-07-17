@@ -1,5 +1,6 @@
 // Central place to manage /daily quiz questions.
-// Each entry: { q: string, options: string[], correctIndex: number }
+// Each entry: { q: string, options: string[], correctIndex: number, image?: string, video?: string }
+// image/video can be a URL or a relative path from the project root (e.g. 'images/example.png').
 
 const QUESTIONS = [
   { q: 'Quem pegou o primeiro sub 10 do Brasil?', options: ['Sanjinhu', 'Misfit', 'Shy', 'Booster'], correctIndex: 2 },
