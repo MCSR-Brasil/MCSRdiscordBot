@@ -2,6 +2,7 @@ const { EmbedBuilder } = require('discord.js');
 const logger = require('../lib/logger');
 const { createIntervalJob } = require('../lib/jobs');
 const { loadPostedSet, savePostedSet } = require('../lib/postCache');
+const { processMatch: processRankedDailyStats } = require('../lib/rankedDailyStats');
 
 // Custom emoji configuration via environment variables
 // Examples in .env: WIN_EMOJI=<:ok:1408286736181891072>
@@ -296,6 +297,15 @@ async function runRankedWatcher(client) {
     const players = Array.isArray(match.players) ? match.players : [];
     // Brazil-only filter: only post if at least one player is Brazilian
     const anyBR = players.some(p => isBrazil(p?.country));
+
+    if (anyBR) {
+      try {
+        processRankedDailyStats(match);
+      } catch (e) {
+        logger.error('rankedMatchesWatcher: failed to process daily stats:', e);
+      }
+    }
+
     if (!anyBR) { inFlight.delete(id); continue; }
     if (match?.forfeited) {
       skippedForfeit++;
