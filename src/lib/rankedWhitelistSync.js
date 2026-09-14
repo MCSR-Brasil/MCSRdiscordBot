@@ -2,7 +2,7 @@ const logger = require('./logger');
 const { addToWhitelist } = require('./pacemanWhitelist');
 const { fetchJson } = require('./apiUtils');
 
-const RANKED_LEADERBOARD_API_URL = process.env.RANKED_LEADERBOARD_API_URL || process.env.RANKED_API_URL;
+const RANKED_BR_LEADERBOARD_URL = 'https://api.mcsrranked.com/leaderboard?country=br';
 const DEFAULT_TIMEOUT_MS = Number(process.env.RANKED_WHITELIST_SYNC_TIMEOUT_MS) || 30000;
 const DEFAULT_RETRIES = Number(process.env.RANKED_WHITELIST_SYNC_RETRIES) || 2;
 
@@ -20,7 +20,7 @@ function normalizeName(name) {
 }
 
 /**
- * Check whether a country code/country name represents Brazil.
+ * Check whether a country code represents Brazil.
  *
  * @param {any} country
  * @returns {boolean}
@@ -28,83 +28,34 @@ function normalizeName(name) {
 function isBrazil(country) {
   if (!country) return false;
   const code = String(country).trim().toLowerCase();
-  return ['br', 'bra', 'brazil', 'brasil'].includes(code);
+  return code === 'br' || code === 'bra' || code === 'brazil' || code === 'brasil';
 }
 
 /**
- * Extract an array from a loosely-typed API response.
+ * Extract Brazilian player nicknames from the ranked leaderboard API response.
  *
- * @param {any} data
- * @returns {any[]}
- */
-function unwrapArray(data) {
-  if (Array.isArray(data)) return data;
-  if (data && typeof data === 'object') {
-    const keys = ['data', 'items', 'results', 'players', 'leaderboard', 'entries'];
-    for (const key of keys) {
-      if (key in data && Array.isArray(data[key])) {
-        return data[key];
-      }
-    }
-  }
-  return [];
-}
-
-/**
- * Collect possible nicknames from a single API item.
- *
- * @param {Object} item
- * @returns {string[]}
- */
-function extractNicknamesFromItem(item) {
-  if (!item || typeof item !== 'object') return [];
-  const names = [];
-  if (item.nickname) names.push(item.nickname);
-  if (item.name) names.push(item.name);
-  if (item.username) names.push(item.username);
-  if (item.player && typeof item.player === 'object') {
-    if (item.player.nickname) names.push(item.player.nickname);
-    if (item.player.name) names.push(item.player.name);
-    if (item.player.username) names.push(item.player.username);
-  }
-  return names;
-}
-
-/**
- * Extract Brazilian player nicknames from ranked API data.
- *
- * Handles two common shapes:
- *   1. Array of player entries: [{ nickname, country }]
- *   2. Array of matches: [{ players: [{ nickname, country }] }]
+ * Expected shape:
+ *   {
+ *     status: 'success',
+ *     data: {
+ *       season: { ... },
+ *       users: [{ uuid, nickname, country, eloRate, ... }, ...]
+ *     }
+ *   }
  *
  * @param {any} data
  * @returns {string[]} Unique normalized Brazilian nicknames
  */
 function extractBrazilianNicknames(data) {
-  const items = unwrapArray(data);
+  const users = data?.data?.users;
+  if (!Array.isArray(users)) return [];
+
   const normalized = new Set();
-
-  for (const item of items) {
-    if (!item || typeof item !== 'object') continue;
-
-    if (Array.isArray(item.players)) {
-      for (const player of item.players) {
-        if (player && isBrazil(player.country)) {
-          for (const name of extractNicknamesFromItem(player)) {
-            const key = normalizeName(name);
-            if (key) normalized.add(key);
-          }
-        }
-      }
-      continue;
-    }
-
-    if (isBrazil(item.country)) {
-      for (const name of extractNicknamesFromItem(item)) {
-        const key = normalizeName(name);
-        if (key) normalized.add(key);
-      }
-    }
+  for (const user of users) {
+    if (!user || typeof user !== 'object') continue;
+    if (!isBrazil(user.country)) continue;
+    const nickname = normalizeName(user.nickname);
+    if (nickname) normalized.add(nickname);
   }
 
   return Array.from(normalized);
@@ -132,32 +83,26 @@ function msUntilNext1AMBrasilia(now = Date.now()) {
 }
 
 /**
- * Sync Brazilian players from the ranked leaderboard/matches API into the
- * Paceman whitelist. Existing whitelist entries are left untouched.
+ * Sync Brazilian players from the ranked leaderboard API into the Paceman
+ * whitelist. Existing whitelist entries are left untouched.
  *
  * @param {Object} [options]
- * @param {string} [options.apiUrl] - Override the API URL to fetch
- * @param {number} [options.timeout] - Request timeout in ms
- * @param {number} [options.retries] - Number of retries after the first attempt
+ * @param {number} [options.timeout] - Request timeout in ms (default: 30000)
+ * @param {number} [options.retries] - Number of retries after the first attempt (default: 2)
  *
  * @returns {Promise<{found: number, added: number, alreadyPresent: number, addedNames: string[], errors: string[], source: string}>}
  */
 async function syncRankedBrazilianToPacemanWhitelist(options = {}) {
   const {
-    apiUrl = RANKED_LEADERBOARD_API_URL,
     timeout = DEFAULT_TIMEOUT_MS,
     retries = DEFAULT_RETRIES,
   } = options;
 
-  if (!apiUrl) {
-    throw new Error('RANKED_LEADERBOARD_API_URL (or RANKED_API_URL) is not configured');
-  }
-
-  logger.info(`rankedWhitelistSync: fetching ${apiUrl}`);
+  logger.info(`rankedWhitelistSync: fetching ${RANKED_BR_LEADERBOARD_URL}`);
 
   let data;
   try {
-    data = await fetchJson(apiUrl, { timeout, retries });
+    data = await fetchJson(RANKED_BR_LEADERBOARD_URL, { timeout, retries });
   } catch (e) {
     logger.error('rankedWhitelistSync: fetch failed:', e);
     throw new Error(`Failed to fetch ranked leaderboard: ${e.message}`);
