@@ -1,5 +1,6 @@
 const { ActionRowBuilder, EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder, StringSelectMenuBuilder } = require('discord.js');
 const { addToWhitelist, removeFromWhitelist, getWhitelistSet } = require('../lib/pacemanWhitelist');
+const { syncRankedBrazilianToPacemanWhitelist } = require('../lib/rankedWhitelistSync');
 const { TIER_ROLE_IDS } = require('../lib/pacemanPingSystem');
 
 const REQUIRED_ROLE_ID = process.env.PACEMAN_REQUIRED_ROLE_ID;
@@ -102,7 +103,10 @@ data
     .setDescription('List whitelisted Paceman nicknames'))
   .addSubcommand(sub => sub
     .setName('cargos')
-    .setDescription('Escolha suas notificações do Paceman')); 
+    .setDescription('Escolha suas notificações do Paceman'))
+  .addSubcommand(sub => sub
+    .setName('sync-ranked')
+    .setDescription('Sync Brazilian players from ranked leaderboard to Paceman whitelist')); 
 
 module.exports = {
   data,
@@ -116,6 +120,32 @@ module.exports = {
       }
       const member = await interaction.guild.members.fetch(interaction.user.id);
       return interaction.reply({ ...notificationSelector(getNotificationLevel(member)), ephemeral: true });
+    }
+
+    if (sub === 'sync-ranked') {
+      if (!canManageWhitelist(interaction)) {
+        return interaction.reply({ content: 'Você não tem permissão para usar este comando.', ephemeral: true });
+      }
+      await interaction.deferReply({ ephemeral: true });
+      try {
+        const result = await syncRankedBrazilianToPacemanWhitelist();
+        const lines = [
+          'Sincronização com o ranked concluída.',
+          `Fonte: ${result.source}`,
+          `Jogadores brasileiros encontrados: ${result.found}`,
+          `Adicionados à whitelist: ${result.added}`,
+          `Já presentes: ${result.alreadyPresent}`,
+        ];
+        if (result.addedNames.length > 0) {
+          lines.push(`Novos: ${result.addedNames.map(n => `\`${n}\``).join(', ')}`);
+        }
+        if (result.errors.length > 0) {
+          lines.push(`Erros: ${result.errors.join('; ')}`);
+        }
+        return interaction.editReply({ content: lines.join('\n'), ephemeral: true });
+      } catch (e) {
+        return interaction.editReply({ content: `Erro ao sincronizar: ${e.message}`, ephemeral: true });
+      }
     }
 
     if (!canManageWhitelist(interaction)) {
