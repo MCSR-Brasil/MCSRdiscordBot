@@ -1,6 +1,7 @@
 const { ActionRowBuilder, EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder, StringSelectMenuBuilder } = require('discord.js');
 const { addToWhitelist, removeFromWhitelist, getWhitelistSet } = require('../lib/pacemanWhitelist');
 const { syncRankedBrazilianToPacemanWhitelist } = require('../lib/rankedWhitelistSync');
+const { sendCurrentDaySummary } = require('../jobs/rankedDailySummary');
 const { TIER_ROLE_IDS } = require('../lib/pacemanPingSystem');
 
 const REQUIRED_ROLE_ID = process.env.PACEMAN_REQUIRED_ROLE_ID;
@@ -106,7 +107,10 @@ data
     .setDescription('Escolha suas notificações do Paceman'))
   .addSubcommand(sub => sub
     .setName('sync-ranked')
-    .setDescription('Sync Brazilian players from ranked leaderboard to Paceman whitelist')); 
+    .setDescription('Sync Brazilian players from ranked leaderboard to Paceman whitelist'))
+  .addSubcommand(sub => sub
+    .setName('debug-resumo')
+    .setDescription('Envia o resumo parcial de hoje no canal do Rankedbot'));
 
 module.exports = {
   data,
@@ -122,8 +126,24 @@ module.exports = {
       return interaction.reply({ ...notificationSelector(getNotificationLevel(member)), ephemeral: true });
     }
 
+    if (sub === 'debug-resumo') {
+      if (!interaction.inGuild() || !canManageWhitelist(interaction)) {
+        return interaction.reply({ content: 'Você não tem permissão para usar este comando.', ephemeral: true });
+      }
+      await interaction.deferReply({ ephemeral: true });
+      try {
+        const result = await sendCurrentDaySummary(interaction.client);
+        const content = result.sent
+          ? `Resumo parcial de ${result.date} enviado no canal <#807688775870054413>. Os dados de hoje foram mantidos.`
+          : `Ainda não há partidas brasileiras registradas em ${result.date}. Nenhum embed foi enviado.`;
+        return interaction.editReply({ content });
+      } catch (e) {
+        return interaction.editReply({ content: `Erro ao enviar o resumo parcial: ${e.message}` });
+      }
+    }
+
     if (sub === 'sync-ranked') {
-      if (!canManageWhitelist(interaction)) {
+      if (!interaction.inGuild() || !canManageWhitelist(interaction)) {
         return interaction.reply({ content: 'Você não tem permissão para usar este comando.', ephemeral: true });
       }
       await interaction.deferReply({ ephemeral: true });

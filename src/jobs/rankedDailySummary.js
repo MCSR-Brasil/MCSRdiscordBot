@@ -38,12 +38,13 @@ function msUntilNextMidnightBrasilia(now = Date.now()) {
   return target - now;
 }
 
-function getSummaryChannel(client) {
-  const channel = client.channels.cache.get(DAILY_STATS_CHANNEL_ID) || client.channels.resolve(DAILY_STATS_CHANNEL_ID);
-  if (!channel) {
-    logger.warn(`rankedDailySummary: could not resolve channel ${DAILY_STATS_CHANNEL_ID}`);
-    return null;
-  }
+async function getSummaryChannel(client) {
+  const channel = client.channels.cache.get(DAILY_STATS_CHANNEL_ID)
+    || await client.channels.fetch(DAILY_STATS_CHANNEL_ID).catch(error => {
+      logger.warn(`rankedDailySummary: failed to fetch channel ${DAILY_STATS_CHANNEL_ID}: ${error?.message || error}`);
+      return null;
+    });
+  if (!channel) return null;
 
   if (!channel.isTextBased()) {
     logger.warn(`rankedDailySummary: channel ${DAILY_STATS_CHANNEL_ID} is not text-based`);
@@ -57,7 +58,7 @@ function buildSummaryEmbed(stats) {
   const wins = stats.wins || 0;
   const losses = stats.losses || 0;
   const forfeits = stats.forfeits || 0;
-  const total = wins + losses + forfeits;
+  const total = Number.isFinite(stats.totalMatches) ? stats.totalMatches : wins + losses + forfeits;
 
   const fastestValue = stats.fastestTimeMs != null
     ? `**${formatDuration(stats.fastestTimeMs)}** — ${stats.fastestPlayer || '???'}`
@@ -82,26 +83,32 @@ function buildSummaryEmbed(stats) {
   return embed;
 }
 
+async function sendSummaryForDate(client, date, deleteAfterSend = false) {
+  const channel = await getSummaryChannel(client);
+  if (!channel) throw new Error(`Canal ${DAILY_STATS_CHANNEL_ID} não foi encontrado ou não é um canal de texto.`);
+
+  const stats = getStatsForDate(date);
+  if (!stats) return { sent: false, date, reason: 'no-stats' };
+
+  await channel.send({ embeds: [buildSummaryEmbed(stats)] });
+  logger.info(`rankedDailySummary: summary sent for ${date}`);
+  if (deleteAfterSend) deleteStatsForDate(date);
+  return { sent: true, date, stats };
+}
+
 async function sendDailySummary(client) {
-  const channel = getSummaryChannel(client);
-  if (!channel) return;
-
-  // At midnight BRT we just switched days; report on the day that ended.
-  const yesterday = toBrasiliaDateString(Date.now() - 1);
-  const stats = getStatsForDate(yesterday);
-
-  if (!stats) {
-    logger.info(`rankedDailySummary: no stats recorded for ${yesterday}`);
-    return;
-  }
-
+  // Subtract a full day so small timer delays after midnight cannot select the new day.
+  const yesterday = toBrasiliaDateString(Date.now() - ONE_DAY_MS);
   try {
-    await channel.send({ embeds: [buildSummaryEmbed(stats)] });
-    logger.info(`rankedDailySummary: summary sent for ${yesterday}`);
-    deleteStatsForDate(yesterday);
+    const result = await sendSummaryForDate(client, yesterday, true);
+    if (!result.sent) logger.info(`rankedDailySummary: no stats recorded for ${yesterday}`);
   } catch (e) {
     logger.error('rankedDailySummary: failed to send summary:', e);
   }
+}
+
+async function sendCurrentDaySummary(client) {
+  return sendSummaryForDate(client, toBrasiliaDateString(), false);
 }
 
 function registerJob({ register }) {
@@ -115,14 +122,21 @@ function registerJob({ register }) {
       const initialDelay = msUntilNextMidnightBrasilia();
       logger.info(`rankedDailySummary: scheduled in ${initialDelay}ms (midnight BRT)`);
 
+      let interval = null;
       const timeout = setTimeout(() => {
-        run();
-        setInterval(run, ONE_DAY_MS);
+        run().catch(error => logger.error('rankedDailySummary: scheduled run failed:', error));
+        interval = setInterval(
+          () => run().catch(error => logger.error('rankedDailySummary: scheduled run failed:', error)),
+          ONE_DAY_MS
+        );
       }, initialDelay);
 
-      return async () => clearTimeout(timeout);
+      return async () => {
+        clearTimeout(timeout);
+        if (interval) clearInterval(interval);
+      };
     },
   });
 }
 
-module.exports = { register: registerJob, buildSummaryEmbed };
+module.exports = { register: registerJob, buildSummaryEmbed, sendCurrentDaySummary };

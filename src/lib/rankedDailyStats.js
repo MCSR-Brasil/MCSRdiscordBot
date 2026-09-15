@@ -96,6 +96,7 @@ function getDayStats(stats, date) {
       wins: 0,
       losses: 0,
       forfeits: 0,
+      totalMatches: 0,
       fastestTimeMs: null,
       fastestPlayer: null,
       fastestMatchId: null,
@@ -143,9 +144,7 @@ function processMatch(match) {
     }
 
     const eloChange = getEloChangeForPlayer(match, playerUuid);
-    if (eloChange > 0) {
-      day.totalEloWon += eloChange;
-    }
+    day.totalEloWon += eloChange;
 
     // Fastest time belongs to the winning BR player of a completed match.
     if (!isForfeit && matchTimeMs != null && playerUuid === winnerUuid) {
@@ -158,6 +157,7 @@ function processMatch(match) {
   }
 
   if (involvedBR) {
+    day.totalMatches = (day.totalMatches || 0) + 1;
     day.seenMatchIds.push(matchId);
     saveStats(stats);
   }
