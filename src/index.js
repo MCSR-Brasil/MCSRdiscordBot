@@ -16,6 +16,17 @@ const client = new Client({
   partials: [Partials.Message, Partials.Channel],
 });
 
+// Global safety net: log instead of crashing on stray errors/rejections
+process.on('unhandledRejection', error => {
+  logger.error('Unhandled promise rejection:', error);
+});
+process.on('uncaughtException', error => {
+  logger.error('Uncaught exception:', error);
+});
+client.on('error', error => logger.error('Discord client error:', error));
+client.on('shardError', (error, shardId) => logger.error(`Shard ${shardId} error:`, error));
+client.on('warn', info => logger.warn('Discord client warn:', info));
+
 // Load commands into client and bind events
 loadCommands(client);
 loadEvents(client);
@@ -24,4 +35,7 @@ client.once('ready', () => {
   startExternalSignupSync();
 });
 
-client.login(TOKEN);
+client.login(TOKEN).catch(error => {
+  logger.error('Login failed:', error);
+  process.exit(1);
+});
