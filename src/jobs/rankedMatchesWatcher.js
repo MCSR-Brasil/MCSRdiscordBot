@@ -291,8 +291,6 @@ async function runRankedWatcher(client) {
     const id = match && match.id;
     if (id == null) continue;
     considered++;
-    if (postedSet.has(id) || inFlight.has(id)) { skippedDup++; continue; } // already posted or being posted
-    inFlight.add(id);
 
     const players = Array.isArray(match.players) ? match.players : [];
     // Brazil-only filter: only post if at least one player is Brazilian
@@ -305,6 +303,9 @@ async function runRankedWatcher(client) {
         logger.error('rankedMatchesWatcher: failed to process daily stats:', e);
       }
     }
+
+    if (postedSet.has(id) || inFlight.has(id)) { skippedDup++; continue; } // already posted or being posted
+    inFlight.add(id);
 
     if (!anyBR) { inFlight.delete(id); continue; }
     if (match?.forfeited) {

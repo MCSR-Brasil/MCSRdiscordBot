@@ -113,7 +113,11 @@ function getDayStats(stats, date) {
  * @param {Object} match
  */
 function processMatch(match) {
-  const date = toBrasiliaDateString();
+  const rawMatchDate = Number(match?.date);
+  const matchDateMs = Number.isFinite(rawMatchDate) && rawMatchDate > 0
+    ? (rawMatchDate < 9999999999 ? rawMatchDate * 1000 : rawMatchDate)
+    : Date.now();
+  const date = toBrasiliaDateString(matchDateMs);
   const stats = loadStats();
   const day = getDayStats(stats, date);
 
@@ -126,16 +130,15 @@ function processMatch(match) {
   const isForfeit = Boolean(match.forfeited);
   const matchTimeMs = isForfeit ? null : parseMatchTime(match?.result?.time);
 
-  let involvedBR = false;
+  const brazilianPlayers = players.filter(player => isBrazil(player?.country));
+  const involvedBR = brazilianPlayers.length > 0;
 
-  for (const player of players) {
-    if (!isBrazil(player?.country)) continue;
-    involvedBR = true;
+  if (involvedBR && isForfeit) day.forfeits++;
+
+  for (const player of brazilianPlayers) {
     const playerUuid = player.uuid;
 
-    if (isForfeit) {
-      day.forfeits++;
-    } else if (winnerUuid) {
+    if (winnerUuid) {
       if (playerUuid === winnerUuid) {
         day.wins++;
       } else {
