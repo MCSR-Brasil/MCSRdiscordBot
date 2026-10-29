@@ -1,9 +1,9 @@
 const logger = require('../lib/logger');
 const { createIntervalJob } = require('../lib/jobs');
 const { getLiveStreams } = require('../lib/twitch');
+const { getStreamers } = require('../lib/twitchStreamers');
 const { readJson, writeJson } = require('../lib/store');
 
-const STREAMERS_FILE = 'twitch_streamers.json';
 const LIVE_STATE_FILE = 'twitch_live.json';
 
 const TWITCH_EMOJI = process.env.TWITCH_EMOJI || '🔴';
@@ -17,8 +17,7 @@ const TWITCH_EMOJI = process.env.TWITCH_EMOJI || '🔴';
  * @returns {Array<{ login: string, discordId: string|null }>}
  */
 function loadStreamers() {
-  const fromFile = readJson(STREAMERS_FILE, []);
-  const list = Array.isArray(fromFile) ? fromFile : [];
+  const list = getStreamers();
 
   const envRaw = String(process.env.TWITCH_STREAMERS || '').trim();
   if (envRaw) {
