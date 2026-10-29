@@ -44,10 +44,9 @@ register-commands.js
 
 ## Commands
 
-- `/perfil <nome>` — Player profile with runs, earnings, and ranked link.
 - `/compare <player_one> <player_two> [season]` — Ranked score comparison.
 - `/daily` — Daily question with streak tracking.
-- `/server` — Basic server info.
+- `/dailygoals` — View and manage daily quiz answer goals.
 
 ## Adding things
 

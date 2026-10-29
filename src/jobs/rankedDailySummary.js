@@ -12,7 +12,6 @@ const DAILY_STATS_CHANNEL_ID = '807688775870054413';
 
 const WIN = process.env.WIN_EMOJI || '🏆';
 const LOSE = process.env.LOSE_EMOJI || '❌';
-const FF = process.env.FF_EMOJI || '🏳️';
 const CLOCK = process.env.CLOCK_EMOJI || '⏱️';
 const TROPHY = process.env.TROPHY_EMOJI || '🏆';
 const GLOBE = process.env.GLOBE_EMOJI || '🌐';
@@ -54,18 +53,56 @@ async function getSummaryChannel(client) {
   return channel;
 }
 
+function formatSigned(n) {
+  return n > 0 ? `+${n}` : `${n}`;
+}
+
+function buildBestTimesValue(stats) {
+  const times = Array.isArray(stats.bestTimes) && stats.bestTimes.length
+    ? stats.bestTimes
+    : (stats.fastestTimeMs != null
+      ? [{ timeMs: stats.fastestTimeMs, player: stats.fastestPlayer || '???' }]
+      : []);
+  if (!times.length) return '—';
+
+  const entries = times.slice(0, 3).map(t => `**${formatDuration(t.timeMs)}** — ${t.player || '???'}`);
+  // Wrap onto a new line if a single line would get too long
+  const lines = [''];
+  for (const entry of entries) {
+    const current = lines[lines.length - 1];
+    const candidate = current ? `${current} | ${entry}` : entry;
+    if (current && candidate.length > 50) {
+      lines.push(entry);
+    } else {
+      lines[lines.length - 1] = candidate;
+    }
+  }
+  return lines.join('\n');
+}
+
+function buildEloValue(stats) {
+  const totalEloWon = typeof stats.totalEloWon === 'number' ? stats.totalEloWon : 0;
+  const lines = [`**${totalEloWon} Elo**`];
+
+  const eloByPlayer = stats.eloByPlayer && typeof stats.eloByPlayer === 'object' ? stats.eloByPlayer : {};
+  const entries = Object.entries(eloByPlayer);
+  if (entries.length) {
+    const loser = entries.reduce((a, b) => (b[1] < a[1] ? b : a));
+    const winner = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
+    const parts = [];
+    if (loser[1] < 0) parts.push(`🔻 ${loser[0]} ${formatSigned(loser[1])}`);
+    if (winner[1] > 0) parts.push(`🔺 ${winner[0]} ${formatSigned(winner[1])}`);
+    if (parts.length) lines.push(parts.join(' | '));
+  }
+
+  return lines.join('\n');
+}
+
 function buildSummaryEmbed(stats) {
   const wins = stats.wins || 0;
   const losses = stats.losses || 0;
   const forfeits = stats.forfeits || 0;
   const total = Number.isFinite(stats.totalMatches) ? stats.totalMatches : wins + losses + forfeits;
-
-  const fastestValue = stats.fastestTimeMs != null
-    ? `**${formatDuration(stats.fastestTimeMs)}** — ${stats.fastestPlayer || '???'}`
-    : '—';
-
-  const totalEloWon = typeof stats.totalEloWon === 'number' ? stats.totalEloWon : 0;
-  const eloValue = totalEloWon > 0 ? `+${totalEloWon}` : `${totalEloWon}`;
 
   const embed = new EmbedBuilder()
     .setColor(0x5dade2)
@@ -73,9 +110,8 @@ function buildSummaryEmbed(stats) {
     .addFields(
       { name: `${WIN} Vitórias`, value: `**${wins}**`, inline: true },
       { name: `${LOSE} Derrotas`, value: `**${losses}**`, inline: true },
-      { name: `${FF} Forfeit`, value: `**${forfeits}**`, inline: true },
-      { name: `${CLOCK} Tempo mais rápido`, value: fastestValue, inline: false },
-      { name: '📈 Elo ganho total', value: `**${eloValue}**`, inline: false },
+      { name: `${CLOCK} Melhores tempos`, value: buildBestTimesValue(stats), inline: false },
+      { name: '📈 Saldo de Elo BR', value: buildEloValue(stats), inline: false },
     )
     .setFooter({ text: `${total} Partidas totais | #Rankedbot` })
     .setTimestamp();

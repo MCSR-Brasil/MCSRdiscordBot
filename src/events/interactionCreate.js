@@ -1,6 +1,5 @@
 const { Events, MessageFlags } = require('discord.js');
 const daily = require('../lib/daily');
-const eventSignups = require('../lib/eventSignups');
 const logger = require('../lib/logger');
 const { QUESTIONS } = require('../lib/dailyQuestions');
 
@@ -49,24 +48,6 @@ module.exports = {
         return;
       }
 
-      const eventAction = eventSignups.parseEventCustomId(id);
-      if (eventAction?.action === 'signup') {
-        try {
-          return await eventSignups.handleSignupButton(interaction, eventAction.slug);
-        } catch (error) {
-          logger.error('Event signup button error:', error);
-        }
-        return;
-      }
-      if (eventAction?.action === 'cancel') {
-        try {
-          return await eventSignups.handleCancelButton(interaction, eventAction.slug);
-        } catch (error) {
-          logger.error('Event cancel button error:', error);
-        }
-        return;
-      }
-
       return; // other buttons ignored
     }
 
@@ -97,21 +78,6 @@ module.exports = {
         await command.autocomplete(interaction);
       } catch (error) {
         logger.error('Error running autocomplete:', error);
-      }
-      return;
-    }
-
-    if (interaction.isModalSubmit()) {
-      const eventModal = eventSignups.parseEventCustomId(interaction.customId);
-      if (eventModal?.action === 'modal') {
-        try {
-          return await eventSignups.handleModalSubmit(interaction, eventModal.slug);
-        } catch (error) {
-          logger.error('Event signup modal error:', error);
-          if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-            await interaction.reply({ content: 'Erro ao processar inscrição.', flags: MessageFlags.Ephemeral }).catch(() => {});
-          }
-        }
       }
       return;
     }

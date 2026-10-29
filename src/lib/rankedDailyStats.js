@@ -100,11 +100,20 @@ function getDayStats(stats, date) {
       fastestTimeMs: null,
       fastestPlayer: null,
       fastestMatchId: null,
+      bestTimes: [],
       totalEloWon: 0,
+      eloByPlayer: {},
       seenMatchIds: [],
     };
   }
-  return stats[date];
+  const day = stats[date];
+  if (!Array.isArray(day.bestTimes)) {
+    day.bestTimes = day.fastestTimeMs != null
+      ? [{ timeMs: day.fastestTimeMs, player: day.fastestPlayer || '???', matchId: day.fastestMatchId || null }]
+      : [];
+  }
+  if (!day.eloByPlayer || typeof day.eloByPlayer !== 'object') day.eloByPlayer = {};
+  return day;
 }
 
 /**
@@ -148,12 +157,17 @@ function processMatch(match) {
 
     const eloChange = getEloChangeForPlayer(match, playerUuid);
     day.totalEloWon += eloChange;
+    const playerName = player.nickname || player.name || '???';
+    day.eloByPlayer[playerName] = (day.eloByPlayer[playerName] || 0) + eloChange;
 
-    // Fastest time belongs to the winning BR player of a completed match.
+    // Best times belong to the winning BR player of a completed match.
     if (!isForfeit && matchTimeMs != null && playerUuid === winnerUuid) {
+      day.bestTimes.push({ timeMs: matchTimeMs, player: playerName, matchId });
+      day.bestTimes.sort((a, b) => a.timeMs - b.timeMs);
+      if (day.bestTimes.length > 10) day.bestTimes.length = 10;
       if (day.fastestTimeMs == null || matchTimeMs < day.fastestTimeMs) {
         day.fastestTimeMs = matchTimeMs;
-        day.fastestPlayer = player.nickname || player.name || '???';
+        day.fastestPlayer = playerName;
         day.fastestMatchId = matchId;
       }
     }

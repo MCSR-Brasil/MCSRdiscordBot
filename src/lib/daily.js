@@ -177,6 +177,10 @@ function getLeaderboard(limit = 8) {
   return entries.slice(0, limit);
 }
 
+function getTotalCorrect() {
+  return getAllStats().reduce((sum, e) => sum + e.correct, 0);
+}
+
 async function resolveUserName(client, userId) {
   try {
     const user = await client.users.fetch(userId);
@@ -230,5 +234,5 @@ async function buildLeaderboardEmbed(client, limit = 8, title = '🏆 Daily Lead
   return embed;
 }
 
-module.exports = { getLastClaim, getStreak, getStats, getAllStats, getLeaderboard, buildLeaderboardEmbed, formatStats, setClaimNow, registerAnswer, timeLeftMs, canClaim, DAY_MS, msUntilNextMidnight };
+module.exports = { getLastClaim, getStreak, getStats, getAllStats, getTotalCorrect, getLeaderboard, buildLeaderboardEmbed, formatStats, setClaimNow, registerAnswer, timeLeftMs, canClaim, DAY_MS, msUntilNextMidnight };
 

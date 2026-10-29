@@ -1,30 +1,31 @@
 const logger = require('../lib/logger');
 const daily = require('../lib/daily');
+const dailyGoals = require('../lib/dailyGoals');
 
-const LEADERBOARD_CHANNEL_ID = process.env.DAILY_LEADERBOARD_CHANNEL_ID || '1419734249627451403';
+const GOALS_CHANNEL_ID = process.env.DAILY_GOALS_CHANNEL_ID || '807697781623357531';
 
-async function postDailyLeaderboard(client) {
+async function postDailyGoals(client) {
   const channel = await client.channels
-    .fetch(LEADERBOARD_CHANNEL_ID)
+    .fetch(GOALS_CHANNEL_ID)
     .catch(err => {
-      logger.warn(`dailyLeaderboard: failed to fetch channel ${LEADERBOARD_CHANNEL_ID}: ${err?.message || err}`);
+      logger.warn(`dailyGoals: failed to fetch channel ${GOALS_CHANNEL_ID}: ${err?.message || err}`);
       return null;
     });
 
   if (!channel || !channel.isTextBased()) {
-    logger.warn(`dailyLeaderboard: invalid channel ${LEADERBOARD_CHANNEL_ID}`);
+    logger.warn(`dailyGoals: invalid channel ${GOALS_CHANNEL_ID}`);
     return;
   }
 
-  const embed = await daily.buildLeaderboardEmbed(client, 8, '🏆 Daily Leaderboard');
+  const embed = dailyGoals.buildGoalsEmbed();
   await channel.send({ embeds: [embed] });
-  logger.info('dailyLeaderboard: posted leaderboard');
+  logger.info('dailyGoals: posted goals progress');
 }
 
 module.exports = {
   async register({ register }) {
     register({
-      name: 'dailyLeaderboard',
+      name: 'dailyGoals',
       async start(client) {
         let timeout = null;
         let stopped = false;
@@ -32,9 +33,9 @@ module.exports = {
         async function tick() {
           if (stopped) return;
           try {
-            await postDailyLeaderboard(client);
+            await postDailyGoals(client);
           } catch (e) {
-            logger.error('dailyLeaderboard: tick error:', e);
+            logger.error('dailyGoals: tick error:', e);
           } finally {
             if (!stopped) {
               timeout = setTimeout(tick, daily.msUntilNextMidnight());
