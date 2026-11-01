@@ -55,7 +55,7 @@ function buildGoalsEmbed() {
     .setColor(0x00b894)
     .setTitle('🎯 Metas do Daily Quiz')
     .setTimestamp()
-    .setFooter({ text: 'Atualizado à meia-noite (horário de Brasília - UTC-3)' });
+    .setFooter({ text: 'Atualizado às 00:15 (horário de Brasília - UTC-3)' });
 
   if (!goals.length) {
     embed.setDescription(

@@ -43,7 +43,7 @@ function loadLiveState() {
 }
 
 function saveLiveState(state) {
-  try { writeJson(LIVE_STATE_FILE, state); } catch {}
+  writeJson(LIVE_STATE_FILE, state);
 }
 
 async function setLiveRole(guild, discordId, live) {
@@ -51,7 +51,7 @@ async function setLiveRole(guild, discordId, live) {
   const roleId = process.env.TWITCH_LIVE_ROLE_ID;
   if (!roleId) return;
   try {
-    const member = await guild.members.fetch(discordId);
+    const member = await guild.members.fetch({ user: discordId, force: true });
     if (!member) return;
     const hasRole = member.roles.cache.has(roleId);
     if (live && !hasRole) {
@@ -81,10 +81,6 @@ async function runTwitchWatcher(client) {
   }
 
   const streamers = loadStreamers();
-  if (!streamers.length) {
-    logger.info('twitchWatcher: no streamers configured (twitch_streamers.json / TWITCH_STREAMERS)');
-    return;
-  }
 
   const channel = await client.channels
     .fetch(TWITCH_ANNOUNCE_CHANNEL_ID)
@@ -107,6 +103,14 @@ async function runTwitchWatcher(client) {
   }
 
   const state = loadLiveState();
+  const liveMembers = new Set(streamers.filter(s => liveMap.has(s.login)).map(s => s.discordId).filter(Boolean));
+  const knownMembers = new Set([
+    ...streamers.map(s => s.discordId),
+    ...Object.values(state).map(s => s.discordId),
+  ].filter(Boolean));
+  for (const discordId of knownMembers) {
+    await setLiveRole(guild, discordId, liveMembers.has(discordId));
+  }
   let changed = false;
 
   for (const { login, discordId } of streamers) {
@@ -118,23 +122,19 @@ async function runTwitchWatcher(client) {
       if (!prev || prev.streamId !== streamId) {
         // Went live (or a new stream session): announce once per stream id
         try {
-          await channel.send({ content: buildLiveMessage(stream) });
+          await channel.send({ content: buildLiveMessage(stream), allowedMentions: { parse: [] } });
+          state[login] = { streamId, discordId };
+          saveLiveState(state);
           logger.info(`twitchWatcher: announced ${login} live (stream ${streamId})`);
         } catch (e) {
           logger.error(`twitchWatcher: failed to announce ${login}:`, e?.message || e);
         }
       }
-      await setLiveRole(guild, discordId, true);
-      if (!prev || prev.streamId !== streamId) {
-        state[login] = { streamId };
-        changed = true;
-      }
-    } else if (prev) {
-      // Went offline: clear state and remove the role
-      delete state[login];
+    }
+    // Went offline: clear state and remove the role
+    if (state[login]?.discordId !== discordId) {
+      state[login] = { ...state[login], discordId };
       changed = true;
-      await setLiveRole(guild, discordId, false);
-      logger.info(`twitchWatcher: ${login} went offline`);
     }
   }
 
@@ -144,11 +144,20 @@ async function runTwitchWatcher(client) {
 module.exports = {
   async register({ register }) {
     const intervalMs = Number(process.env.TWITCH_POLL_MS) || 60000;
+    let running = false;
     register(
       createIntervalJob({
         name: 'twitchWatcher',
         intervalMs,
-        run: runTwitchWatcher,
+        async run(client) {
+          if (running) return;
+          running = true;
+          try {
+            await runTwitchWatcher(client);
+          } finally {
+            running = false;
+          }
+        },
       })
     );
   },

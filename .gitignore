@@ -25,6 +25,7 @@ data/cache/profile_cache.json
 src/data/events/
 
 
-./src/data/daily.json
-./src/data/paceman_whitelist.json
-./src/data/ranked_daily_stats.json
+/src/data/*.json
+/.cache/
+/src/.cache/
+/data/cache/

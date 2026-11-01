@@ -22,6 +22,11 @@ async function postDailyGoals(client) {
   logger.info('dailyGoals: posted goals progress');
 }
 
+function msUntilGoalsPost(now = Date.now()) {
+  const offset = 15 * 60 * 1000;
+  return daily.msUntilNextMidnight(now - offset);
+}
+
 module.exports = {
   async register({ register }) {
     register({
@@ -38,12 +43,12 @@ module.exports = {
             logger.error('dailyGoals: tick error:', e);
           } finally {
             if (!stopped) {
-              timeout = setTimeout(tick, daily.msUntilNextMidnight());
+              timeout = setTimeout(tick, msUntilGoalsPost());
             }
           }
         }
 
-        timeout = setTimeout(tick, daily.msUntilNextMidnight());
+        timeout = setTimeout(tick, msUntilGoalsPost());
         return () => { stopped = true; clearTimeout(timeout); };
       },
     });

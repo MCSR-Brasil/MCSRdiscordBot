@@ -48,6 +48,16 @@ function messageTimestamp(message) {
   return message?.createdAt || message?.created_at || message?.date || null;
 }
 
+function isRecentDonation(message, now = Date.now()) {
+  const raw = messageTimestamp(message);
+  if (raw == null || raw === '') return false;
+  const numeric = Number(raw);
+  const timestamp = Number.isFinite(numeric)
+    ? (numeric < 1e12 ? numeric * 1000 : numeric)
+    : Date.parse(raw);
+  return Number.isFinite(timestamp) && timestamp <= now && now - timestamp <= 32 * 60 * 60 * 1000;
+}
+
 function truncateText(value, max = 500) {
   const text = String(value || '');
   return text.length > max ? `${text.slice(0, max)}…` : text;
@@ -211,6 +221,7 @@ async function runLivePixWatcher(client) {
   for (const messageData of messages) {
     const id = messageIdOf(messageData);
     if (!id) continue;
+    if (!isRecentDonation(messageData)) continue;
     if (postedSet.has(id) || inFlight.has(id)) {
       skippedDup++;
       continue;
