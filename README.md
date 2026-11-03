@@ -47,6 +47,21 @@ register-commands.js
 - `/compare <player_one> <player_two> [season]` — Ranked score comparison.
 - `/daily` — Daily question with streak tracking.
 - `/dailygoals` — View and manage daily quiz answer goals.
+- `/setup-cores` — (admin) Cria os cargos de cor definidos em `config/colors.json` e salva os IDs de volta no arquivo.
+- `/painel-cores` — (admin) Posta o painel permanente de escolha de cor no canal atual.
+
+## Painel de cores (português)
+
+Cada membro pode ter apenas **um** cargo de cor por vez. A lista de cores fica em `config/colors.json` (até 24 entradas: `key`, `name`, `hex`, `emoji`, `description`, `roleId`).
+
+1. Edite `config/colors.json` com as cores desejadas (`roleId` começa `null`).
+2. Rode `npm run register` para registrar os comandos.
+3. Inicie o bot e use `/setup-cores` — ele cria os cargos e preenche os `roleId`s automaticamente.
+4. Use `/painel-cores` no canal desejado — o botão abre um modal com as cores.
+
+O bot precisa da permissão **Gerenciar Cargos** e seu cargo mais alto deve ficar **acima** dos cargos de cor.
+
+O painel é exclusivo para **Nitro Boosters**: defina `BOOSTER_ROLE_ID` no `.env` e ative a intent **Server Members** no Developer Portal. Um job diário (~01:00, horário de Brasília) remove as cores de quem deixou de ser booster.
 
 ## Adding things
 

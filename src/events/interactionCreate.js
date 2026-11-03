@@ -1,11 +1,20 @@
 const { Events, MessageFlags } = require('discord.js');
 const daily = require('../lib/daily');
 const logger = require('../lib/logger');
+const colorPicker = require('../lib/colorPicker');
+const { IDS: COLOR_IDS } = require('../lib/colors');
 const { QUESTIONS } = require('../lib/dailyQuestions');
 
 module.exports = {
   name: Events.InteractionCreate,
   async execute(client, interaction) {
+    // Color picker: panel button (opens modal) and modal submit (applies role)
+    if ((interaction.isButton() && interaction.customId === COLOR_IDS.PANEL_BUTTON)
+      || (interaction.isModalSubmit() && interaction.customId === COLOR_IDS.MODAL)) {
+      await colorPicker.handle(interaction);
+      return;
+    }
+
     // Buttons for /daily
     if (interaction.isButton()) {
       const id = interaction.customId || '';
@@ -95,9 +104,9 @@ module.exports = {
       try {
         if (interaction.isRepliable()) {
           if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+            await interaction.followUp({ content: 'There was an error while executing this command!', flags: MessageFlags.Ephemeral });
           } else {
-            await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+            await interaction.reply({ content: 'There was an error while executing this command!', flags: MessageFlags.Ephemeral });
           }
         }
       } catch {}

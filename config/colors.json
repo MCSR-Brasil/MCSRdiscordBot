@@ -1,0 +1,12 @@
+[
+  { "key": "vermelho", "name": "Vermelho", "hex": "#E74C3C", "emoji": "🔴", "description": "Intenso e marcante", "roleId": null },
+  { "key": "laranja", "name": "Laranja", "hex": "#E67E22", "emoji": "🟠", "description": "Quente e energético", "roleId": null },
+  { "key": "amarelo", "name": "Amarelo", "hex": "#F1C40F", "emoji": "🟡", "description": "Brilhante e alegre", "roleId": null },
+  { "key": "verde", "name": "Verde", "hex": "#2ECC71", "emoji": "🟢", "description": "Fresco e tranquilo", "roleId": null },
+  { "key": "azul", "name": "Azul", "hex": "#3498DB", "emoji": "🔵", "description": "Calmo e confiável", "roleId": null },
+  { "key": "roxo", "name": "Roxo", "hex": "#9B59B6", "emoji": "🟣", "description": "Misterioso e criativo", "roleId": null },
+  { "key": "rosa", "name": "Rosa", "hex": "#FF7BAC", "emoji": "🌸", "description": "Doce e divertido", "roleId": null },
+  { "key": "ciano", "name": "Ciano", "hex": "#1ABC9C", "emoji": "🩵", "description": "Leve e refrescante", "roleId": null },
+  { "key": "branco", "name": "Branco", "hex": "#ECF0F1", "emoji": "⚪", "description": "Limpo e minimalista", "roleId": null },
+  { "key": "cinza", "name": "Cinza", "hex": "#95A5A6", "emoji": "⚙️", "description": "Neutro e elegante", "roleId": null }
+]
