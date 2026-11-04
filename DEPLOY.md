@@ -1,4 +1,7 @@
 # Deploying to production (SFTP)
+IMPORTANT, IT TAKES A LONG TIME, MAKE SURE TO LET IT RUN
+
+
 
 The production server is **SFTP-only** — no shell access, so no `git pull`,
 `npm`, or process restarts can be run remotely. Deployment = file upload.

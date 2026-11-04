@@ -1,5 +1,5 @@
 const logger = require('../lib/logger');
-const { loadColors } = require('../lib/colors');
+const { loadColors, canUseColors } = require('../lib/colors');
 
 // Cargo de Nitro Booster — vem do .env
 const BOOSTER_ROLE_ID = process.env.BOOSTER_ROLE_ID;
@@ -31,7 +31,7 @@ async function sweep(client) {
     if (member.user.bot) continue;
     const memberColorRoles = member.roles.cache.filter(r => colorRoleIds.has(r.id));
     if (memberColorRoles.size === 0) continue;
-    if (member.roles.cache.has(BOOSTER_ROLE_ID)) continue; // ainda é booster
+    if (canUseColors(member)) continue; // ainda é booster
 
     try {
       await member.roles.remove(

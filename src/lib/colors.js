@@ -32,4 +32,10 @@ function currentColorOf(member, colors) {
   return colors.find(c => c.roleId && member.roles.cache.has(c.roleId)) || null;
 }
 
-module.exports = { COLORS_PATH, IDS, REMOVE_VALUE, loadColors, saveColors, currentColorOf };
+function canUseColors(member) {
+  const { additionalRoleIds } = require('../../config/colorAccess.json');
+  return [process.env.BOOSTER_ROLE_ID, ...additionalRoleIds]
+    .some(id => id && member.roles.cache.has(id));
+}
+
+module.exports = { COLORS_PATH, IDS, REMOVE_VALUE, loadColors, saveColors, currentColorOf, canUseColors };

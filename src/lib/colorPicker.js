@@ -2,7 +2,7 @@ const {
   ModalBuilder, LabelBuilder, StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder, MessageFlags,
 } = require('discord.js');
-const { IDS, REMOVE_VALUE, loadColors, currentColorOf } = require('./colors');
+const { IDS, REMOVE_VALUE, loadColors, currentColorOf, canUseColors } = require('./colors');
 const logger = require('./logger');
 
 // Clique no botão do painel: showModal() DEVE ser a primeira resposta (limite de 3s, sem defer)
@@ -56,9 +56,8 @@ async function handleModalSubmit(interaction) {
   const reason = `Cor escolhida via painel por ${interaction.user.tag}`;
 
   // Painel é exclusivo de Nitro Boosters (varredura diária remove cores de ex-boosters)
-  const boosterRoleId = process.env.BOOSTER_ROLE_ID;
-  if (boosterRoleId && !member.roles.cache.has(boosterRoleId)) {
-    return interaction.editReply('💎 Esse painel é exclusivo para **Nitro Boosters** do servidor.');
+  if (!canUseColors(member)) {
+    return interaction.editReply('Você precisa de um cargo autorizado para escolher uma cor.');
   }
 
   // Opção de remoção

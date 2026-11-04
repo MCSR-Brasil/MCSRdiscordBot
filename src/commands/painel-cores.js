@@ -20,19 +20,9 @@ module.exports = {
       });
     }
 
-    const lista = colors
-      .map(c => `${c.emoji} **${c.name}** — ${c.description}`)
-      .join('\n');
-
     const embed = new EmbedBuilder()
       .setColor(0x3498DB) // detalhe azul
-      .setTitle('🎨 Escolha a cor do seu nome')
-      .setDescription(
-        'Quer deixar seu nome com a sua cara? Escolha uma das cores abaixo e ela vira sua no servidor na hora.\n\n' +
-        lista +
-        '\n\n💎 **Exclusivo para Nitro Boosters** — se o boost acabar, a cor vai junto.\n' +
-        '-# Você só pode ter uma cor por vez — trocar substitui a anterior.'
-      )
+      .setTitle('🎨 Escolha a cor do seu nome!')
       .setTimestamp(new Date());
 
     const row = new ActionRowBuilder().addComponents(
