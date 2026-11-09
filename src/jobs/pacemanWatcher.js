@@ -26,7 +26,9 @@ const FOOTER_ICON_URL = process.env.PACEMAN_FOOTER_ICON || 'https://cdn-icons-pn
 // Good-enough run thresholds that bypass the whitelist
 const GOOD_ENOUGH_STRONGHOLD_MS = 6 * 60 * 1000;
 const GOOD_ENOUGH_END_MS = (6 * 60 + 30) * 1000;
-const GOOD_ENOUGH_CREDITS_MS = (7 * 60 + 15) * 1000;
+const GOOD_ENOUGH_CREDITS_MS = 8 * 60 * 1000;
+// Gringo (non-whitelisted) finish time that also gets posted to the main chat
+const GRINGO_MAIN_CHAT_MS = Number(process.env.PACEMAN_GRINGO_MAIN_CHAT_MS) || (7 * 60 + 15) * 1000;
 
 const SPLIT_EMOJIS = {
   'rsg.enter_bastion': 'BASTION_EMOJI',
@@ -213,6 +215,27 @@ async function postCreditsNotification(creditsChannel, run, worldId, event) {
   }
 }
 
+function gringoFinishEvent(unpostedEvents) {
+  if (!Array.isArray(unpostedEvents)) return null;
+  const finishes = unpostedEvents.filter(e =>
+    (e.eventId === 'rsg.credits' || e.eventId === 'rsg.finish') &&
+    Number.isFinite(Number(e.igt)) && Number(e.igt) <= GRINGO_MAIN_CHAT_MS
+  );
+  return finishes.length ? finishes[finishes.length - 1] : null;
+}
+
+async function postGringoFinishNotification(creditsChannel, run, worldId, unpostedEvents) {
+  if (!creditsChannel) return;
+  const event = gringoFinishEvent(unpostedEvents);
+  if (!event) return;
+  try {
+    await creditsChannel.send({ embeds: [buildSplitEmbed(run, event, true)] });
+    logger.info(`pacemanWatcher: posted gringo finish to main chat for ${worldId} (${formatMs(event.igt)})`);
+  } catch (error) {
+    logger.error(`pacemanWatcher: failed to send gringo finish for ${worldId}:`, error);
+  }
+}
+
 function getRunCache(worldId) {
   if (!postedCache[worldId]) {
     postedCache[worldId] = { postedEventIds: [], nickname: null, lastUpdated: 0 };
@@ -343,6 +366,8 @@ async function runPacemanWatcher(client) {
         if (whitelisted) {
           const creditsEvent = unpostedEvents.find(e => e.eventId === 'rsg.credits');
           await postCreditsNotification(creditsChannel?.isTextBased() ? creditsChannel : null, run, worldId, creditsEvent || {});
+        } else {
+          await postGringoFinishNotification(creditsChannel?.isTextBased() ? creditsChannel : null, run, worldId, unpostedEvents);
         }
         for (const e of unpostedEvents) markPosted(worldId, e.eventId, nickname);
         try { savePostedCache(postedCache); } catch {}
@@ -373,6 +398,8 @@ async function runPacemanWatcher(client) {
         if (whitelisted) {
           const creditsEvent = unpostedEvents.find(e => e.eventId === 'rsg.credits');
           await postCreditsNotification(creditsChannel?.isTextBased() ? creditsChannel : null, run, worldId, creditsEvent || {});
+        } else {
+          await postGringoFinishNotification(creditsChannel?.isTextBased() ? creditsChannel : null, run, worldId, unpostedEvents);
         }
         for (const e of unpostedEvents) markPosted(worldId, e.eventId, nickname);
         try { savePostedCache(postedCache); } catch {}
