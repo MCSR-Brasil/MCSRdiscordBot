@@ -3,6 +3,7 @@ const logger = require('../lib/logger');
 const { createIntervalJob } = require('../lib/jobs');
 const { loadPostedSet, savePostedSet } = require('../lib/postCache');
 const { processMatch: processRankedDailyStats } = require('../lib/rankedDailyStats');
+const { recordMatch: recordThesisMatch } = require('../lib/thesisReplays');
 
 // Custom emoji configuration via environment variables
 // Examples in .env: WIN_EMOJI=<:ok:1408286736181891072>
@@ -58,8 +59,7 @@ function formatDuration(msOrSec) {
   // Heuristic: typical match is minutes. If value < 100000 (≈27.7h) treat as seconds; else milliseconds.
   const v = Number(msOrSec);
   if (!Number.isFinite(v)) return '—';
-  const ms = v < 100000 ? v * 1000 : v;
-  const totalSec = Math.floor(ms / 1000);
+  const totalSec = Math.floor(v / 1000);
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
@@ -302,6 +302,12 @@ async function runRankedWatcher(client) {
       } catch (e) {
         logger.error('rankedMatchesWatcher: failed to process daily stats:', e);
       }
+    }
+
+    try {
+      recordThesisMatch(match);
+    } catch (e) {
+      logger.error('rankedMatchesWatcher: failed to record thesis match:', e);
     }
 
     if (postedSet.has(id) || inFlight.has(id)) { skippedDup++; continue; } // already posted or being posted

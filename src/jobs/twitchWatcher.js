@@ -66,11 +66,15 @@ async function setLiveRole(guild, discordId, live) {
   }
 }
 
+function isMinecraftStream(stream) {
+  return String(stream?.game_name || '').toLowerCase().includes('minecraft');
+}
+
 function buildLiveMessage(stream) {
   const name = stream.user_name || stream.user_login;
   const title = stream.title || '';
   const url = `https://twitch.tv/${stream.user_login}`;
-  return `${TWITCH_EMOJI} **${name} ESTÁ AO VIVO** ${TWITCH_EMOJI}\n${title}\n🔗 ${url}`;
+  return `# ${TWITCH_EMOJI} ${name} ESTÁ AO VIVO ${TWITCH_EMOJI}\n${title}\n🔗 ${url}`;
 }
 
 async function runTwitchWatcher(client) {
@@ -117,7 +121,7 @@ async function runTwitchWatcher(client) {
     const stream = liveMap.get(login) || null;
     const prev = state[login] || null;
 
-    if (stream) {
+    if (stream && isMinecraftStream(stream)) {
       const streamId = String(stream.id);
       if (!prev || prev.streamId !== streamId) {
         // Went live (or a new stream session): announce once per stream id

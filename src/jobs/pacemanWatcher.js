@@ -26,7 +26,7 @@ const FOOTER_ICON_URL = process.env.PACEMAN_FOOTER_ICON || 'https://cdn-icons-pn
 // Good-enough run thresholds that bypass the whitelist
 const GOOD_ENOUGH_STRONGHOLD_MS = 6 * 60 * 1000;
 const GOOD_ENOUGH_END_MS = (6 * 60 + 30) * 1000;
-const GOOD_ENOUGH_CREDITS_MS = 8 * 60 * 1000;
+const GOOD_ENOUGH_CREDITS_MS = (7 * 60 + 15) * 1000;
 
 const SPLIT_EMOJIS = {
   'rsg.enter_bastion': 'BASTION_EMOJI',
@@ -130,9 +130,9 @@ function isRunGoodEnough(events) {
   for (const e of events) {
     const igt = Number(e.igt);
     if (!Number.isFinite(igt)) continue;
-    if (e.eventId === 'rsg.enter_stronghold' && igt < GOOD_ENOUGH_STRONGHOLD_MS) return true;
-    if (e.eventId === 'rsg.enter_end' && igt < GOOD_ENOUGH_END_MS) return true;
-    if ((e.eventId === 'rsg.credits' || e.eventId === 'rsg.finish') && igt < GOOD_ENOUGH_CREDITS_MS) return true;
+    if (e.eventId === 'rsg.enter_stronghold' && igt <= GOOD_ENOUGH_STRONGHOLD_MS) return true;
+    if (e.eventId === 'rsg.enter_end' && igt <= GOOD_ENOUGH_END_MS) return true;
+    if ((e.eventId === 'rsg.credits' || e.eventId === 'rsg.finish') && igt <= GOOD_ENOUGH_CREDITS_MS) return true;
   }
   return false;
 }
