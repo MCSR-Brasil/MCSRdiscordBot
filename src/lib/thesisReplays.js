@@ -72,33 +72,35 @@ function recordMatch(match) {
 }
 
 /**
- * Owner of a match = the highest-elo player, so each match is listed exactly
- * once under one player's profile.
+ * Summarize pending (not yet announced) matches for the digest.
+ *
+ * Each match counts once per qualifying player (elo >= threshold at match end).
+ * A match counted under two players is a "dupe" — the replay shows up on both
+ * profiles, so the digest lists those at the bottom to avoid double downloads.
+ *
+ * @returns {{ counts: Map<string, number>, dupes: string[], ids: any[] }}
  */
-function ownerOf(match) {
-  const players = Array.isArray(match.players) ? match.players : [];
-  let best = null;
-  for (const p of players) {
-    if (best == null || Number(p.elo || 0) > Number(best.elo || 0)) best = p;
-  }
-  return best;
-}
-
-/**
- * Drain pending matches that haven't been announced yet. Returns grouped
- * buckets: [{ owner, matches: [...] }] preserving arrival order.
- */
-function pendingGroups() {
+function pendingSummary() {
   const announced = loadAnnounced();
   const pending = loadPending().filter(m => !announced.has(m.id));
-  const groups = new Map();
+  const counts = new Map();
+  const dupes = [];
+  const ids = [];
+
   for (const m of pending) {
-    const owner = ownerOf(m);
-    const key = owner?.nickname || '???';
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(m);
+    ids.push(m.id);
+    const players = Array.isArray(m.players) ? m.players : [];
+    const qualifying = players.filter(p => Number(p.elo) >= ELO_THRESHOLD);
+    for (const p of qualifying) {
+      const name = p.nickname || '???';
+      counts.set(name, (counts.get(name) || 0) + 1);
+    }
+    if (qualifying.length > 1) {
+      dupes.push(qualifying.map(p => p.nickname || '???').join(' vs '));
+    }
   }
-  return [...groups.entries()].map(([owner, matches]) => ({ owner, matches }));
+
+  return { counts, dupes, ids };
 }
 
 function markAnnounced(ids) {
@@ -110,4 +112,4 @@ function markAnnounced(ids) {
   savePending(remaining);
 }
 
-module.exports = { recordMatch, pendingGroups, markAnnounced, ownerOf, ELO_THRESHOLD };
+module.exports = { recordMatch, pendingSummary, markAnnounced, ELO_THRESHOLD };

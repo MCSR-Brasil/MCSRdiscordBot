@@ -1,28 +1,36 @@
 const logger = require('../lib/logger');
 const { createIntervalJob } = require('../lib/jobs');
-const { pendingGroups, markAnnounced, ownerOf, ELO_THRESHOLD } = require('../lib/thesisReplays');
+const { readJson, writeJson } = require('../lib/store');
+const { pendingSummary, markAnnounced, ELO_THRESHOLD } = require('../lib/thesisReplays');
 
 const CHANNEL_ID = process.env.THESIS_CHANNEL_ID || '1569482975282995330';
+const STATE_FILE = 'thesis_digest_state.json';
 
-function formatTime(ms) {
-  const v = Number(ms);
-  if (!Number.isFinite(v)) return '—';
-  const totalSec = Math.floor(v / 1000);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
+// Hours (server local time) at which the digest fires
+const DIGEST_HOURS = String(process.env.THESIS_DIGEST_HOURS || '8,20')
+  .split(',')
+  .map(s => Number(s.trim()))
+  .filter(Number.isFinite);
+
+function currentSlot(now = new Date()) {
+  const h = now.getHours();
+  if (!DIGEST_HOURS.includes(h)) return null;
+  return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}-${h}`;
 }
 
-function matchLine(match) {
-  const owner = ownerOf(match);
-  const other = (match.players || []).find(p => p !== owner && p.uuid !== owner?.uuid) || {};
-  const ownerName = owner?.nickname || '???';
-  const otherName = other.nickname || '???';
-  const outcome = match.forfeited ? `Forfeit (${formatTime(match.result?.time)})` : formatTime(match.result?.time);
-  return `${ownerName} vs ${otherName} — ${outcome}`;
+function lastSlot() {
+  return readJson(STATE_FILE, {}).lastSlot || null;
+}
+
+function saveSlot(slot) {
+  writeJson(STATE_FILE, { lastSlot: slot });
 }
 
 async function runDigest(client) {
+  const slot = currentSlot();
+  if (!slot || slot === lastSlot()) return;
+  saveSlot(slot);
+
   const channel = await client.channels
     .fetch(CHANNEL_ID)
     .catch(err => {
@@ -34,37 +42,35 @@ async function runDigest(client) {
     return;
   }
 
-  const groups = pendingGroups();
-  if (!groups.length) {
+  const { counts, dupes, ids } = pendingSummary();
+  if (!ids.length) {
     logger.info('thesisReplayDigest: nothing to announce');
     return;
   }
 
-  const sentIds = [];
-  for (const { owner, matches } of groups) {
+  for (const [name, count] of counts) {
     try {
-      await channel.send(`**${owner}**`);
+      await channel.send(`**${name}** — ${count} match${count === 1 ? '' : 'es'}`);
     } catch (e) {
-      logger.error(`thesisReplayDigest: failed to send header for ${owner}:`, e?.message || e);
-      continue;
-    }
-    for (const match of matches) {
-      try {
-        await channel.send(matchLine(match));
-        sentIds.push(match.id);
-      } catch (e) {
-        logger.error(`thesisReplayDigest: failed to send match ${match.id}:`, e?.message || e);
-      }
+      logger.error(`thesisReplayDigest: failed to send for ${name}:`, e?.message || e);
     }
   }
 
-  markAnnounced(sentIds);
-  logger.info(`thesisReplayDigest: announced ${sentIds.length} match(es) across ${groups.length} player(s)`);
+  if (dupes.length) {
+    try {
+      await channel.send(`**Dupes** (replay appears on both profiles):\n${dupes.map(d => `• ${d}`).join('\n')}`);
+    } catch (e) {
+      logger.error('thesisReplayDigest: failed to send dupes footer:', e?.message || e);
+    }
+  }
+
+  markAnnounced(ids);
+  logger.info(`thesisReplayDigest: announced ${ids.length} match(es) across ${counts.size} player(s), ${dupes.length} dupe(s)`);
 }
 
 module.exports = {
   async register({ register }) {
-    const intervalMs = Number(process.env.THESIS_POLL_MS) || 60 * 60 * 1000;
+    const intervalMs = Number(process.env.THESIS_POLL_MS) || 60 * 1000;
     let running = false;
     register(
       createIntervalJob({
@@ -81,6 +87,6 @@ module.exports = {
         },
       })
     );
-    logger.info(`thesisReplayDigest: min elo ${ELO_THRESHOLD}, channel ${CHANNEL_ID}`);
+    logger.info(`thesisReplayDigest: min elo ${ELO_THRESHOLD}, channel ${CHANNEL_ID}, hours ${DIGEST_HOURS.join('/')}`);
   },
 };
