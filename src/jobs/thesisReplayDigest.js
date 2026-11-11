@@ -29,7 +29,6 @@ function saveSlot(slot) {
 async function runDigest(client) {
   const slot = currentSlot();
   if (!slot || slot === lastSlot()) return;
-  saveSlot(slot);
 
   const channel = await client.channels
     .fetch(CHANNEL_ID)
@@ -42,30 +41,23 @@ async function runDigest(client) {
     return;
   }
 
-  const { counts, dupes, ids } = pendingSummary();
+  const { ids } = pendingSummary();
   if (!ids.length) {
+    saveSlot(slot);
     logger.info('thesisReplayDigest: nothing to announce');
     return;
   }
 
-  for (const [name, count] of counts) {
-    try {
-      await channel.send(`**${name}** — ${count} match${count === 1 ? '' : 'es'}`);
-    } catch (e) {
-      logger.error(`thesisReplayDigest: failed to send for ${name}:`, e?.message || e);
-    }
-  }
-
-  if (dupes.length) {
-    try {
-      await channel.send(`**Dupes** (replay appears on both profiles):\n${dupes.map(d => `• ${d}`).join('\n')}`);
-    } catch (e) {
-      logger.error('thesisReplayDigest: failed to send dupes footer:', e?.message || e);
-    }
-  }
-
+  await channel.send({
+    files: [{
+      attachment: Buffer.from(`${ids.join('\n')}\n`, 'utf8'),
+      name: `match-ids-${slot}.txt`,
+    }],
+    allowedMentions: { parse: [] },
+  });
   markAnnounced(ids);
-  logger.info(`thesisReplayDigest: announced ${ids.length} match(es) across ${counts.size} player(s), ${dupes.length} dupe(s)`);
+  saveSlot(slot);
+  logger.info(`thesisReplayDigest: announced ${ids.length} match ID(s)`);
 }
 
 module.exports = {

@@ -3,7 +3,7 @@ const { readJson, writeJson } = require('./store');
 const PENDING_FILE = 'thesis_pending.json';
 const ANNOUNCED_FILE = 'thesis_announced.json';
 
-const ELO_THRESHOLD = Number(process.env.THESIS_MIN_ELO) || 1980;
+const ELO_THRESHOLD = Number(process.env.THESIS_MIN_ELO) || 1950;
 
 /**
  * Final elo for a player in a match: changes[].eloRate + change when present,
