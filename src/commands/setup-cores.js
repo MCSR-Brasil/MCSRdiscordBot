@@ -17,6 +17,7 @@ module.exports = {
     }
 
     const created = [];
+    const adopted = [];
     const skipped = [];
     const failed = [];
 
@@ -29,8 +30,17 @@ module.exports = {
           skipped.push(`${color.emoji} **${color.name}**`);
           continue;
         }
-        // roleId salvo aponta para um cargo que não existe mais; recria
+        // roleId salvo aponta para um cargo que não existe mais
         color.roleId = null;
+      }
+
+      // Se já existe um cargo com esse nome, adota o ID em vez de criar duplicado
+      const byName = interaction.guild.roles.cache.find(r => r.name === color.name)
+        ?? (await interaction.guild.roles.fetch()).find(r => r.name === color.name);
+      if (byName) {
+        color.roleId = byName.id;
+        adopted.push(`${color.emoji} **${color.name}**`);
+        continue;
       }
 
       try {
@@ -59,6 +69,7 @@ module.exports = {
 
     const lines = [];
     if (created.length) lines.push(`✅ **Criados (${created.length}):** ${created.join(', ')}`);
+    if (adopted.length) lines.push(`🔗 **Vinculados (${adopted.length}):** ${adopted.join(', ')}`);
     if (skipped.length) lines.push(`⏭️ **Já existiam (${skipped.length}):** ${skipped.join(', ')}`);
     if (failed.length) lines.push(`❌ **Falhas (${failed.length}):** ${failed.join(', ')}`);
     if (unreachable.length) {

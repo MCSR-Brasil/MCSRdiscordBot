@@ -22,8 +22,8 @@ SEP = os.sep
 
 # Directories never uploaded
 EXCLUDE_DIRS = {'node_modules', '.git', '__pycache__', '.cache'}
-# Files never uploaded (secrets stay on the server)
-EXCLUDE_FILES = {'.env'}
+# Files never uploaded (secrets and server-side runtime state stay on the server)
+EXCLUDE_FILES = {'.env', 'colors.json'}
 # Files deleted on the server (removed in this version)
 DELETE_ON_SERVER = [
     '/src/commands/dailyStats.js',
